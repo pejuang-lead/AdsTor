@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id" class="transition-colors duration-300">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AdsTor - Otomatisasi. Optimasi. Skalasi.</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' },
+                        blue: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' },
+                        teal: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 900: '#134e4a' }
+                    },
+                    spacing: { 'safe-bottom': 'env(safe-area-inset-bottom)' },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style type="text/tailwindcss">
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .card-shadow { box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+        .dark .card-shadow { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .swal2-popup { @apply rounded-3xl !important; font-family: 'Inter', sans-serif !important; }
+        .dark .swal2-popup { @apply bg-slate-900 text-white border border-slate-700 !important; }
+        .status-badge { @apply px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase inline-flex items-center gap-1.5 border tracking-wide; }
+    </style>
+</head>
+<body class="bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-32 transition-colors duration-300">
+
+    <nav class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
+        <div class="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
+                    <i class="fa-solid fa-bullhorn text-white text-lg"></i>
+                </div>
+                <div><h1 class="font-black text-lg">AdsTor</h1><p class="text-[10px] text-slate-500 font-bold tracking-wide hidden sm:block">Otomatisasi & Skalasi</p></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openAccountSelectModal()" class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 pl-3 pr-3 py-2 rounded-lg hover:border-blue-400 transition active:scale-95 group max-w-[140px]">
+                    <span id="headerAccountLabel" class="text-[10px] font-bold truncate">Pilih Akun</span>
+                    <i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i>
+                </button>
+                <button onclick="toggleTheme()" id="themeToggleBtn" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800"><i class="fa-solid fa-moon text-xs"></i></button>
+                <button onclick="refreshData()" id="refreshBtn" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800"><i class="fa-solid fa-arrows-rotate text-xs"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-md mx-auto px-4 py-6 space-y-8">
+        <div class="space-y-4">
+            <div class="flex justify-between items-end">
+                <div class="flex-1">
+                    <h2 class="text-3xl font-black mb-1">Ringkasan</h2>
+                    <p class="text-sm text-slate-500 font-medium" id="currentDateDisplay">...</p>
+                </div>
+            </div>
+            <div id="summaryGrid" class="grid grid-cols-2 gap-4"><div class="col-span-2 text-center py-8 text-slate-400 animate-pulse text-sm">Memuat metrik...</div></div>
+        </div>
+
+        <section class="space-y-5">
+            <h3 class="font-bold text-xl">Performa Kampanye</h3>
+            <div id="campaignList" class="space-y-4 pb-4"></div>
+        </section>
+    </main>
+
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[340px] z-40">
+        <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-xl text-white p-1.5 rounded-full flex justify-between items-center shadow-2xl border border-slate-700/50">
+            <button class="flex-1 p-3.5 rounded-full text-blue-400 hover:bg-white/10 transition" title="Dashboard"><i class="fa-solid fa-chart-pie text-xl"></i></button>
+            <button onclick="openRulesModal()" class="flex-1 p-3.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition" title="Aturan"><i class="fa-solid fa-robot text-xl"></i></button>
+            <button onclick="openAccountModal()" class="flex-1 p-3.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition" title="Akun"><i class="fa-solid fa-gear text-xl"></i></button>
+        </div>
+    </div>
+
+    <div id="accountModal" class="fixed inset-0 z-[90] hidden flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAccountModal()"></div>
+        <div class="bg-white dark:bg-slate-900 w-full sm:max-w-md max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-6 relative z-10">
+            <h3 class="font-bold text-lg mb-4">Kelola Akun</h3>
+            <div class="space-y-4">
+                <input type="text" id="inputName" placeholder="Nama Akun" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
+                <input type="text" id="inputId" placeholder="ID Akun Iklan (Angka Saja)" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
+                <input type="password" id="inputToken" placeholder="Access Token" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
+                <button onclick="saveAccount()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm">Simpan Akun</button>
+            </div>
+            <div id="accountListContainer" class="mt-6 space-y-2"></div>
+        </div>
+    </div>
+
+    <div id="rulesModal" class="fixed inset-0 z-[60] hidden flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeRulesModal()"></div>
+        <div class="bg-white dark:bg-slate-900 w-full sm:max-w-5xl h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl relative z-10">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Aturan Otomatis</h3>
+                <button onclick="closeRulesModal()" class="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1">
+                <button onclick="openCreateRuleModal()" class="w-full py-3 bg-green-600 text-white font-bold rounded-xl text-sm mb-4"><i class="fa-solid fa-plus mr-2"></i> Buat Aturan Baru</button>
+                <div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><tbody id="rulesTableBody"></tbody></table></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="createRuleModal" class="fixed inset-0 z-[70] hidden flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeCreateRuleModal()"></div>
+        <div class="bg-white dark:bg-slate-900 w-full sm:max-w-md max-h-[90vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-6 relative z-10 space-y-4">
+            <h3 class="font-bold text-lg">Buat Aturan</h3>
+            <input type="text" id="crName" placeholder="Nama Aturan" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
+            <select id="crTarget" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold">
+                <option value="campaign">Kampanye</option>
+                <option value="adset">Set Iklan</option>
+                <option value="ad">Iklan</option>
+            </select>
+            <select id="crAction" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold">
+                <option value="turn_off">Matikan</option>
+                <option value="turn_on">Nyalakan</option>
+            </select>
+            <button onclick="saveRule()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm">Simpan</button>
+        </div>
+    </div>
+
+    <div id="accountSelectModal" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAccountSelectModal()"></div>
+        <div class="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 relative z-10">
+            <h3 class="font-bold text-lg mb-4">Pilih Akun</h3>
+            <div id="accountSelectionList" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG
+        const WORKER_URL = "https://adstor-backend.tanyaberkahberlimpah.workers.dev";
+        const CONFIG = { apiVersion: 'v19.0' };
+        let accounts = JSON.parse(localStorage.getItem('ads_accounts')) || [];
+        let currentAccountId = localStorage.getItem('ads_active_id') || '';
+        let rules = JSON.parse(localStorage.getItem('ads_rules')) || [];
+
+        // INIT
+        function initApp() {
+            initTheme();
+            updateHeaderAccountLabel();
+            refreshData();
+            
+            // AUTO SYNC ON LOAD
+            syncToRobot(true); // Silent sync
+            
+            // Render Lists
+            document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        // --- CORE: AUTO SYNC ---
+        async function syncToRobot(silent = false) {
+            if (rules.length === 0 && accounts.length === 0) return;
+            
+            try {
+                // Sync Accounts
+                await fetch(WORKER_URL + '/accounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(accounts)
+                });
+                // Sync Rules
+                await fetch(WORKER_URL + '/rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rules)
+                });
+                if(!silent) Swal.fire('Tersinkronisasi', 'Data berhasil dikirim ke Cloudflare.', 'success');
+                console.log("[Auto-Sync] Data sent to worker.");
+            } catch (e) {
+                console.error("[Auto-Sync Error]", e);
+            }
+        }
+
+        // --- DATA & UI ---
+        async function refreshData() {
+            const acc = accounts.find(a => a.id === currentAccountId);
+            const list = document.getElementById('campaignList');
+            const grid = document.getElementById('summaryGrid');
+            
+            if(!acc) {
+                list.innerHTML = '<div class="text-center py-10 text-slate-400">Belum ada akun dipilih.</div>';
+                grid.innerHTML = '<div class="col-span-2 text-center py-4 text-slate-400">-</div>';
+                return;
+            }
+
+            try {
+                // Simple Data Fetch (Live)
+                const url = `https://graph.facebook.com/${CONFIG.apiVersion}/${acc.adAccountId}/campaigns?fields=id,name,status,daily_budget,lifetime_budget,insights.date_preset(today){spend,impressions,cpm,ctr,actions}&limit=50&access_token=${acc.accessToken}`;
+                const res = await fetch(url);
+                const json = await res.json();
+                
+                if(json.error) throw new Error(json.error.message);
+                
+                const campaigns = json.data || [];
+                renderCampaigns(campaigns);
+                renderSummary(campaigns);
+                
+            } catch (e) {
+                list.innerHTML = `<div class="text-center py-10 text-red-500">Error: ${e.message}</div>`;
+            }
+        }
+
+        function renderCampaigns(campaigns) {
+            const list = document.getElementById('campaignList');
+            if(campaigns.length === 0) { list.innerHTML = '<div class="text-center text-slate-400">Tidak ada kampanye aktif.</div>'; return; }
+            
+            list.innerHTML = campaigns.map(c => {
+                const insight = c.insights ? c.insights.data[0] : {};
+                const spend = insight.spend || 0;
+                const statusColor = c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500';
+                
+                return `
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 card-shadow">
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="font-bold text-sm truncate pr-2">${c.name}</h4>
+                        <span class="text-[10px] px-2 py-1 rounded font-bold ${statusColor}">${c.status}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg">
+                            <span class="block text-slate-400 font-bold uppercase text-[9px]">Spend</span>
+                            <span class="font-black">Rp ${parseInt(spend).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg">
+                            <span class="block text-slate-400 font-bold uppercase text-[9px]">Impr.</span>
+                            <span class="font-black">${insight.impressions || 0}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderSummary(campaigns) {
+            let totalSpend = 0;
+            campaigns.forEach(c => {
+                if(c.insights) totalSpend += parseFloat(c.insights.data[0].spend || 0);
+            });
+            document.getElementById('summaryGrid').innerHTML = `
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl card-shadow border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Total Spend</p>
+                    <p class="text-2xl font-black text-slate-900 dark:text-white">Rp ${parseInt(totalSpend).toLocaleString('id-ID')}</p>
+                </div>
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl card-shadow border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Kampanye</p>
+                    <p class="text-2xl font-black text-slate-900 dark:text-white">${campaigns.length}</p>
+                </div>
+            `;
+        }
+
+        // --- ACCOUNT ---
+        function saveAccount() {
+            const name = document.getElementById('inputName').value;
+            const id = 'act_' + document.getElementById('inputId').value.replace(/[^0-9]/g, '');
+            const token = document.getElementById('inputToken').value;
+            
+            if(!name || !id || !token) return Swal.fire('Error', 'Data tidak lengkap', 'error');
+            
+            accounts.push({ id: Date.now().toString(), name, adAccountId: id, accessToken: token });
+            localStorage.setItem('ads_accounts', JSON.stringify(accounts));
+            
+            if(accounts.length === 1) { currentAccountId = accounts[0].id; localStorage.setItem('ads_active_id', currentAccountId); }
+            
+            syncToRobot(true); // AUTO SYNC
+            closeAccountModal();
+            refreshData();
+            updateHeaderAccountLabel();
+        }
+
+        function renderAccountSelectionList() {
+            const list = document.getElementById('accountSelectionList');
+            list.innerHTML = accounts.map(a => `
+                <div onclick="switchAccount('${a.id}')" class="p-3 border rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${currentAccountId===a.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700'}">
+                    <p class="font-bold text-sm">${a.name}</p>
+                    <p class="text-xs text-slate-500">${a.adAccountId}</p>
+                </div>
+            `).join('');
+        }
+
+        function switchAccount(id) {
+            currentAccountId = id;
+            localStorage.setItem('ads_active_id', id);
+            closeAccountSelectModal();
+            updateHeaderAccountLabel();
+            refreshData();
+        }
+
+        function updateHeaderAccountLabel() {
+            const acc = accounts.find(a => a.id === currentAccountId);
+            document.getElementById('headerAccountLabel').innerText = acc ? acc.name : 'Pilih Akun';
+        }
+
+        // --- RULES ---
+        function saveRule() {
+            const name = document.getElementById('crName').value;
+            const target = document.getElementById('crTarget').value;
+            const action = document.getElementById('crAction').value;
+            
+            if(!name) return;
+            
+            rules.push({ 
+                id: Date.now(), 
+                name, target, action, 
+                adAccountId: currentAccountId, 
+                conditions: [], // Simplified for brevity in this final snippet
+                isActive: true 
+            });
+            
+            localStorage.setItem('ads_rules', JSON.stringify(rules));
+            syncToRobot(true); // AUTO SYNC
+            
+            closeCreateRuleModal();
+            renderRulesTable();
+        }
+
+        function renderRulesTable() {
+            const tbody = document.getElementById('rulesTableBody');
+            const accRules = rules.filter(r => r.adAccountId === currentAccountId);
+            tbody.innerHTML = accRules.map(r => `
+                <tr class="border-b border-slate-100 dark:border-slate-800">
+                    <td class="py-3 font-bold">${r.name}</td>
+                    <td class="py-3 text-xs uppercase">${r.target}</td>
+                    <td class="py-3 text-xs">${r.action}</td>
+                </tr>
+            `).join('');
+        }
+
+        // --- MODAL UTILS ---
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function openAccountModal() { openModal('accountModal'); }
+        function closeAccountModal() { closeModal('accountModal'); }
+        function openRulesModal() { renderRulesTable(); openModal('rulesModal'); }
+        function closeRulesModal() { closeModal('rulesModal'); }
+        function openCreateRuleModal() { openModal('createRuleModal'); }
+        function closeCreateRuleModal() { closeModal('createRuleModal'); }
+        function openAccountSelectModal() { renderAccountSelectionList(); openModal('accountSelectModal'); }
+        function closeAccountSelectModal() { closeModal('accountSelectModal'); }
+        function initTheme() { 
+            const isDark = localStorage.getItem('theme') === 'dark';
+            document.documentElement.classList.toggle('dark', isDark); 
+        }
+        function toggleTheme() { 
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
