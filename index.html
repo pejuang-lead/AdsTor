@@ -720,30 +720,35 @@
                     }
                 }
 
-                if (currentConversions < 1) return { result: 'Skipped', note: `Ditunda: Belum ada ${metricLabel}.` };
+                // Syarat Minimal 1 Konversi
+                if (currentConversions < 1) return { result: 'Skipped', note: `Ditunda: Belum ada ${metricLabel} (Minimal 1).` };
                 
+                // Syarat Tidak Stagnan
                 let newConversions = currentConversions - lastResults;
                 if (lastResults > 0 && newConversions <= 0) return { result: 'Skipped', note: `Ditunda: ${metricLabel} stagnan (Saat ini: ${currentConversions}, Memori: ${lastResults})` };
 
-                let maxLimit = baseline * 2.00;
+                let maxLimit = baseline * 2.00; // Default max limit is 2x baseline
                 if (rule.budgetLimit) {
                     const customMax = parseFloat(String(rule.budgetLimit).replace(/[^0-9]/g, ''));
-                    if (customMax > 0) maxLimit = Math.min(maxLimit, customMax);
+                    if (customMax > 0) maxLimit = customMax;
                 }
 
                 if (currentBudget >= maxLimit) return { result: 'MaxLimitReached', note: 'Batas Scale Up maksimal tercapai' };
+
+                let targetBudget = currentBudget * 2;
+                if (targetBudget > maxLimit) targetBudget = maxLimit;
 
                 let stepsDone = 0;
                 let finalBudget = currentBudget;
                 let initialBudget = currentBudget;
                 let maxIterations = 15;
 
-                while (finalBudget < maxLimit && stepsDone < maxIterations) {
+                while (finalBudget < targetBudget && stepsDone < maxIterations) {
                     let increaseAmount = finalBudget * 0.20;
                     if (increaseAmount < 1) break;
                     
                     let newBudget = finalBudget + increaseAmount;
-                    if (newBudget > maxLimit) newBudget = maxLimit;
+                    if (newBudget > targetBudget) newBudget = targetBudget;
 
                     const field = entity.budget_type === 'lifetime' ? 'lifetime_budget' : 'daily_budget';
                     await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, { 
@@ -754,13 +759,13 @@
                     
                     finalBudget = newBudget;
                     stepsDone++;
-                    if (finalBudget >= maxLimit) break;
+                    if (finalBudget >= targetBudget) break;
                     await new Promise(r => setTimeout(r, 500));
                 }
 
                 return { 
                     result: 'Success', 
-                    note: `Scale Up instan berantai (${stepsDone}x) mencapai x2 karena pertumbuhan ${metricLabel} (+${formatIDR(finalBudget - initialBudget)})`, 
+                    note: `Scale Up bertahap per 20% (${stepsDone} iterasi) hingga x2 tercapai (+${formatIDR(finalBudget - initialBudget)})`, 
                     valBefore: formatIDR(initialBudget), 
                     valAfter: formatIDR(finalBudget), 
                     baseline_val: baseline, 
@@ -793,17 +798,20 @@
                     return { result: 'MinLimitReached', note: reason };
                 }
 
+                let targetBudget = currentBudget / 2;
+                if (targetBudget < absoluteMin) targetBudget = absoluteMin;
+
                 let stepsDone = 0;
                 let finalBudget = currentBudget;
                 let initialBudget = currentBudget;
                 let maxIterations = 15;
 
-                while (finalBudget > absoluteMin && stepsDone < maxIterations) {
+                while (finalBudget > targetBudget && stepsDone < maxIterations) {
                     let decreaseAmount = finalBudget * 0.20;
                     if (decreaseAmount < 1) break; 
                     
                     let newBudget = finalBudget - decreaseAmount;
-                    if (newBudget <= absoluteMin) newBudget = absoluteMin;
+                    if (newBudget <= targetBudget) newBudget = targetBudget;
 
                     const field = entity.budget_type === 'lifetime' ? 'lifetime_budget' : 'daily_budget';
                     await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, { 
@@ -815,13 +823,13 @@
                     finalBudget = newBudget;
                     stepsDone++;
                     
-                    if (finalBudget <= absoluteMin) break;
+                    if (finalBudget <= targetBudget) break;
                     await new Promise(r => setTimeout(r, 500));
                 }
 
                 return { 
                     result: 'Success', 
-                    note: `Scale Down instan (${stepsDone}x) hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, 
+                    note: `Scale Down bertahap per 20% (${stepsDone} iterasi) hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`, 
                     valBefore: formatIDR(initialBudget), 
                     valAfter: formatIDR(finalBudget), 
                     baseline_dec_val: baseline, 
@@ -877,7 +885,7 @@
                 
                 return { 
                     result: 'Success', 
-                    note: `Reset instan (${stepsDone}x) hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, 
+                    note: `Reset bertahap per 20% (${stepsDone} iterasi) hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, 
                     valBefore: formatIDR(initialBudget), 
                     valAfter: formatIDR(finalBudget) 
                 };
