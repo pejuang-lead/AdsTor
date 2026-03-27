@@ -818,7 +818,7 @@
                         body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) 
                     });
                     
-                    finalBudget = newBudget;
+                    finalBudget = Math.round(newBudget);
                     stepsDone++;
                     if (finalBudget >= targetBudget) break;
                     await new Promise(r => setTimeout(r, 500));
@@ -881,7 +881,7 @@
                         body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) 
                     });
                     
-                    finalBudget = newBudget;
+                    finalBudget = Math.round(newBudget);
                     stepsDone++;
                     
                     if (finalBudget <= targetBudget) break;
@@ -937,7 +937,7 @@
                         body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) 
                     });
                     
-                    finalBudget = newBudget;
+                    finalBudget = Math.round(newBudget);
                     stepsDone++;
                     
                     if (finalBudget <= absoluteMin) break;
