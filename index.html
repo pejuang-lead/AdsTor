@@ -402,7 +402,6 @@
             const dE=document.getElementById('currentDateDisplay');if(dE)dE.innerText=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
             initTheme();updateHeaderAccountLabel();refreshData();
             
-            // PERBAIKAN: Sync logs dan jalankan automated rules setiap 5 menit secara konstan di background UI
             setInterval(async () => {
                 await fetchLogsFromDB();
                 await runAutomatedRules(null);
@@ -628,7 +627,7 @@
         async function saveRuleLog(entry){
             automatedRulesHistory.unshift(entry);
             if(automatedRulesHistory.length>500)automatedRulesHistory.pop();
-            localStorage.setItem('ads_rules_history',JSON.stringify(automatedRulesHistory));
+            localStorage.setItem('ads_rules_history_'+currentUser.email,JSON.stringify(automatedRulesHistory));
             if(APP_CONFIG.gasUrl&&APP_CONFIG.gasUrl!=='MASUKKAN_URL_WEB_APP_GAS_ANDA_DISINI'&&currentUser){
                 try {
                     await fetch(APP_CONFIG.gasUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'save_log',email:currentUser.email,logData:entry})});
@@ -646,13 +645,11 @@
                     let hasNew=false;
                     result.logs.forEach(rLog=>{if(!localIds.has(rLog.id)){automatedRulesHistory.push(rLog);hasNew=true;}});
                     
-                    // Menjamin riwayat di-update lintas device meskipun local storage kosong
                     if(hasNew || automatedRulesHistory.length < result.logs.length || result.logs.length > 0){
                         automatedRulesHistory.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
                         if(automatedRulesHistory.length>500)automatedRulesHistory=automatedRulesHistory.slice(0,500);
                         localStorage.setItem('ads_rules_history_'+currentUser.email,JSON.stringify(automatedRulesHistory));
                         renderRulesTable();
-                        // Memperbarui UI log secara real-time jika modal sedang terbuka
                         if(!document.getElementById('ruleLogsModal').classList.contains('hidden')){
                             const activeRuleName = document.getElementById('logModalRuleName')?.innerText;
                             const ruleIdFilter = activeRuleName !== 'Semua Aturan' ? automatedRulesHistory.find(r => r.ruleName === activeRuleName)?.ruleId : null;
@@ -663,7 +660,6 @@
             }catch(e){}
         }
 
-        // Memisahkan fungsi render UI agar tidak terjadi infinite loop saat sinkronisasi
         function renderRuleLogsUI(ruleId, ruleName) {
             const tbody=document.getElementById('ruleLogsModalBody');
             const mobileContainer=document.getElementById('ruleLogsMobileContainer');
@@ -730,8 +726,6 @@
         function openRuleLogsModal(ruleId,ruleName){
             if(document.getElementById('logModalRuleName'))document.getElementById('logModalRuleName').innerText=ruleName||'Semua Aturan';
             
-            // Sinkronisasi background otomatis ke Google Sheets saat modal Riwayat dibuka
-            // Mencegah data usang (out-of-sync) jika aplikasi dieksekusi di background/device lain
             fetchLogsFromDB();
             
             renderRuleLogsUI(ruleId, ruleName);
@@ -1091,7 +1085,11 @@
             if (globalUpdates) {
                 syncUserDB();
                 renderRulesTable();
-                if (!document.getElementById('ruleLogsModal').classList.contains('hidden')) openRuleLogsModal();
+                if (!document.getElementById('ruleLogsModal').classList.contains('hidden')) {
+                    const activeRuleName = document.getElementById('logModalRuleName')?.innerText;
+                    const ruleIdFilter = activeRuleName !== 'Semua Aturan' ? automatedRulesHistory.find(r => r.ruleName === activeRuleName)?.ruleId : null;
+                    renderRuleLogsUI(ruleIdFilter, activeRuleName);
+                }
             }
 
             if (forceRuleId) {
