@@ -641,20 +641,17 @@
                 const res=await fetch(APP_CONFIG.gasUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'get_logs',email:currentUser.email})});
                 const result=await res.json();
                 if(result.status==='success'&&result.logs&&Array.isArray(result.logs)){
-                    const localIds=new Set(automatedRulesHistory.map(l=>l.id));
-                    let hasNew=false;
-                    result.logs.forEach(rLog=>{if(!localIds.has(rLog.id)){automatedRulesHistory.push(rLog);hasNew=true;}});
+                    // Menjadikan server sebagai Source of Truth untuk sinkronisasi sempurna lintas perangkat
+                    automatedRulesHistory = result.logs;
+                    automatedRulesHistory.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+                    if(automatedRulesHistory.length>500)automatedRulesHistory=automatedRulesHistory.slice(0,500);
+                    localStorage.setItem('ads_rules_history_'+currentUser.email,JSON.stringify(automatedRulesHistory));
                     
-                    if(hasNew || automatedRulesHistory.length < result.logs.length || result.logs.length > 0){
-                        automatedRulesHistory.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-                        if(automatedRulesHistory.length>500)automatedRulesHistory=automatedRulesHistory.slice(0,500);
-                        localStorage.setItem('ads_rules_history_'+currentUser.email,JSON.stringify(automatedRulesHistory));
-                        renderRulesTable();
-                        if(!document.getElementById('ruleLogsModal').classList.contains('hidden')){
-                            const activeRuleName = document.getElementById('logModalRuleName')?.innerText;
-                            const ruleIdFilter = activeRuleName !== 'Semua Aturan' ? automatedRulesHistory.find(r => r.ruleName === activeRuleName)?.ruleId : null;
-                            renderRuleLogsUI(ruleIdFilter, activeRuleName);
-                        }
+                    renderRulesTable();
+                    if(!document.getElementById('ruleLogsModal').classList.contains('hidden')){
+                        const activeRuleName = document.getElementById('logModalRuleName')?.innerText;
+                        const ruleIdFilter = activeRuleName !== 'Semua Aturan' ? automatedRulesHistory.find(r => r.ruleName === activeRuleName)?.ruleId : null;
+                        renderRuleLogsUI(ruleIdFilter, activeRuleName);
                     }
                 }
             }catch(e){}
@@ -723,10 +720,17 @@
             }
         }
 
-        function openRuleLogsModal(ruleId,ruleName){
+        async function openRuleLogsModal(ruleId,ruleName){
             if(document.getElementById('logModalRuleName'))document.getElementById('logModalRuleName').innerText=ruleName||'Semua Aturan';
             
-            fetchLogsFromDB();
+            // Tampilkan indikator loading ringan jika data masih kosong/baru diload
+            const tbody=document.getElementById('ruleLogsModalBody');
+            if(tbody && automatedRulesHistory.length === 0) {
+                tbody.innerHTML='<tr><td colspan="5" class="text-center py-10 text-slate-500 font-medium"><i class="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl mb-2"></i><br>Menyinkronkan riwayat...</td></tr>';
+            }
+            
+            // Wajib menunggu data dari Google Sheets selesai agar 100% sinkron lintas perangkat
+            await fetchLogsFromDB();
             
             renderRuleLogsUI(ruleId, ruleName);
             openModal('ruleLogsModal','ruleLogsModalContent');
