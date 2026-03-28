@@ -408,8 +408,6 @@
                 lastAutomatedRun=Date.now();
             },ENGINE_CONFIG.interval);
             
-            setTimeout(()=>{runAutomatedRules(null);lastAutomatedRun=Date.now();},5000);
-            
             document.addEventListener('visibilitychange', async () => {
                 if(document.visibilityState==='visible' && Date.now() - lastAutomatedRun >= ENGINE_CONFIG.interval){
                     await fetchLogsFromDB();
@@ -450,7 +448,29 @@
         function goToDashboard(){document.querySelectorAll('[id$="Modal"]').forEach(m=>{if(!m.classList.contains('hidden')){const ct=m.querySelector('div[id$="ModalContent"]');if(ct){ct.classList.add('translate-y-full','sm:scale-95','sm:opacity-0','md:translate-y-full','md:scale-95','md:opacity-0');ct.classList.remove('sm:scale-100','sm:opacity-100','md:scale-100','md:opacity-100');}setTimeout(()=>m.classList.add('hidden'),300);}});document.getElementById('mainScrollArea')?.scrollTo({top:0,behavior:'smooth'});}
         function renderEmptyState(){const g=document.getElementById('summaryGrid'),l=document.getElementById('campaignList');if(g)g.innerHTML='<div class="col-span-2 md:col-span-4 py-10 flex flex-col items-center justify-center text-center"><div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4"><i class="fa-solid fa-plug text-slate-400 text-2xl"></i></div><h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Belum Ada Akun Terhubung</h3><p class="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto mb-6">Silakan pilih atau tambahkan akun iklan Meta Ads Anda untuk mulai memonitor.</p><button onclick="openAccountSelectModal()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/20 transition active:scale-95">Pilih / Tambah Akun</button></div>';if(l)l.innerHTML='';}
         
-        async function refreshData(){const ic=document.getElementById('refreshIcon');if(ic)ic.classList.add('fa-spin');const acc=accounts.find(a=>a.id===currentAccountId);if(acc){CONFIG.accessToken=acc.accessToken;CONFIG.adAccountId=acc.adAccountId;await runLiveMode();}else{renderEmptyState();currentCampaignData=[];currentAdSetData=[];currentAdData=[];}const rM=document.getElementById('adsReportModal');if(rM&&!rM.classList.contains('hidden'))await loadAdsReport();if(acc)runAutomatedRules(null);await fetchLogsFromDB();if(ic)ic.classList.remove('fa-spin');}
+        async function refreshData(){
+            const ic=document.getElementById('refreshIcon');
+            if(ic)ic.classList.add('fa-spin');
+            
+            await fetchLogsFromDB();
+            
+            const acc=accounts.find(a=>a.id===currentAccountId);
+            if(acc){
+                CONFIG.accessToken=acc.accessToken;
+                CONFIG.adAccountId=acc.adAccountId;
+                await runLiveMode();
+            }else{
+                renderEmptyState();
+                currentCampaignData=[];currentAdSetData=[];currentAdData=[];
+            }
+            
+            const rM=document.getElementById('adsReportModal');
+            if(rM&&!rM.classList.contains('hidden'))await loadAdsReport();
+            
+            if(acc)runAutomatedRules(null);
+            
+            if(ic)ic.classList.remove('fa-spin');
+        }
 
         async function runLiveMode(){try{const g=document.getElementById('summaryGrid'),l=document.getElementById('campaignList');if(g)g.innerHTML='<div class="col-span-2 md:col-span-4 text-center py-8 text-blue-500 animate-pulse text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i><br>Menarik data Kampanye...</div>';if(l)l.innerHTML='<div class="text-center py-8 text-blue-500 animate-pulse text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i><br>Memuat...</div>';currentCampaignData=await fetchEngineData('campaign',null);processDataAndUI(currentCampaignData);}catch(err){const grid=document.getElementById('summaryGrid');const list=document.getElementById('campaignList');if(grid)grid.innerHTML=`<div class="col-span-2 md:col-span-4 text-center py-8 text-red-500 text-sm"><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><br>Gagal memuat data.</div>`;if(list)list.innerHTML='';
         if (err.message === "TOKEN_INVALID") Swal.fire({icon:'error',title:'Akses Ditolak',text:'Token Meta Anda sudah kedaluwarsa atau tidak valid. Silakan hubungkan ulang akun di menu Profil.'});
@@ -622,7 +642,46 @@
             }
         }
 
-        function isRuleScheduledToRun(rule,now){if(rule.schedule==='custom'){if(!rule.customSchedule)return false;let currentDay=now.getDay();if(currentDay===0)currentDay=7;if(!rule.customSchedule.days||!rule.customSchedule.days.includes(currentDay))return false;let tStart='00:00',tEnd='23:59';if(rule.customSchedule.times&&rule.customSchedule.times[currentDay]){tStart=rule.customSchedule.times[currentDay].start;tEnd=rule.customSchedule.times[currentDay].end;}else{tStart=rule.customSchedule.timeStart||'00:00';tEnd=rule.customSchedule.timeEnd||'23:59';}const currentMinutes=now.getHours()*60+now.getMinutes();const [sH,sM]=tStart.split(':').map(Number);const startMinutes=sH*60+sM;const [eH,eM]=tEnd.split(':').map(Number);const endMinutes=eH*60+eM;if(currentMinutes<startMinutes||currentMinutes>endMinutes)return false;if(!rule.lastCheckedAt)return true;return(now.getTime()-new Date(rule.lastCheckedAt).getTime())>=290000;}if(rule.schedule==='daily'){if(rule.lastCheckedAt&&new Date(rule.lastCheckedAt).toDateString()===now.toDateString())return false;return true;}if(rule.schedule==='continuous'){if(!rule.lastCheckedAt)return true;return(now.getTime()-new Date(rule.lastCheckedAt).getTime())>=290000;}return true;}
+        function isRuleScheduledToRun(rule,now){
+            const lastLog = automatedRulesHistory.find(l => String(l.ruleId) === String(rule.id));
+            let lastCheckedTime = rule.lastCheckedAt ? new Date(rule.lastCheckedAt).getTime() : 0;
+            if (lastLog && lastLog.timestamp) {
+                const logTime = new Date(lastLog.timestamp).getTime();
+                if (logTime > lastCheckedTime) lastCheckedTime = logTime;
+            }
+
+            if(rule.schedule==='custom'){
+                if(!rule.customSchedule)return false;
+                let currentDay=now.getDay();
+                if(currentDay===0)currentDay=7;
+                if(!rule.customSchedule.days||!rule.customSchedule.days.includes(currentDay))return false;
+                let tStart='00:00',tEnd='23:59';
+                if(rule.customSchedule.times&&rule.customSchedule.times[currentDay]){
+                    tStart=rule.customSchedule.times[currentDay].start;
+                    tEnd=rule.customSchedule.times[currentDay].end;
+                }else{
+                    tStart=rule.customSchedule.timeStart||'00:00';
+                    tEnd=rule.customSchedule.timeEnd||'23:59';
+                }
+                const currentMinutes=now.getHours()*60+now.getMinutes();
+                const [sH,sM]=tStart.split(':').map(Number);
+                const startMinutes=sH*60+sM;
+                const [eH,eM]=tEnd.split(':').map(Number);
+                const endMinutes=eH*60+eM;
+                if(currentMinutes<startMinutes||currentMinutes>endMinutes)return false;
+                if(lastCheckedTime === 0) return true;
+                return(now.getTime()-lastCheckedTime)>=290000;
+            }
+            if(rule.schedule==='daily'){
+                if(lastCheckedTime > 0 && new Date(lastCheckedTime).toDateString()===now.toDateString())return false;
+                return true;
+            }
+            if(rule.schedule==='continuous'){
+                if(lastCheckedTime === 0) return true;
+                return(now.getTime()-lastCheckedTime)>=290000;
+            }
+            return true;
+        }
 
         async function saveRuleLog(entry){
             automatedRulesHistory.unshift(entry);
@@ -631,7 +690,7 @@
             if(APP_CONFIG.gasUrl&&APP_CONFIG.gasUrl!=='MASUKKAN_URL_WEB_APP_GAS_ANDA_DISINI'&&currentUser){
                 try {
                     await fetch(APP_CONFIG.gasUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'save_log',email:currentUser.email,logData:entry})});
-                } catch(e) {}
+                } catch(e) { console.warn('Gagal push log', e); }
             }
         }
 
@@ -641,8 +700,12 @@
                 const res=await fetch(APP_CONFIG.gasUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'get_logs',email:currentUser.email})});
                 const result=await res.json();
                 if(result.status==='success'&&result.logs&&Array.isArray(result.logs)){
-                    // Menjadikan server sebagai Source of Truth untuk sinkronisasi sempurna lintas perangkat
-                    automatedRulesHistory = result.logs;
+                    const mergedLogs = [...automatedRulesHistory, ...result.logs];
+                    const uniqueMap = new Map();
+                    mergedLogs.forEach(log => {
+                        if (!uniqueMap.has(String(log.id))) uniqueMap.set(String(log.id), log);
+                    });
+                    automatedRulesHistory = Array.from(uniqueMap.values());
                     automatedRulesHistory.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
                     if(automatedRulesHistory.length>500)automatedRulesHistory=automatedRulesHistory.slice(0,500);
                     localStorage.setItem('ads_rules_history_'+currentUser.email,JSON.stringify(automatedRulesHistory));
@@ -654,7 +717,7 @@
                         renderRuleLogsUI(ruleIdFilter, activeRuleName);
                     }
                 }
-            }catch(e){}
+            }catch(e){ console.warn("Failed to fetch logs", e); }
         }
 
         function renderRuleLogsUI(ruleId, ruleName) {
