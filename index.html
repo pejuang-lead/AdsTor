@@ -645,19 +645,26 @@
                     const localIds=new Set(automatedRulesHistory.map(l=>l.id));
                     let hasNew=false;
                     result.logs.forEach(rLog=>{if(!localIds.has(rLog.id)){automatedRulesHistory.push(rLog);hasNew=true;}});
-                    if(hasNew){
+                    
+                    // Menjamin riwayat di-update lintas device meskipun local storage kosong
+                    if(hasNew || automatedRulesHistory.length < result.logs.length || result.logs.length > 0){
                         automatedRulesHistory.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
                         if(automatedRulesHistory.length>500)automatedRulesHistory=automatedRulesHistory.slice(0,500);
-                        localStorage.setItem('ads_rules_history',JSON.stringify(automatedRulesHistory));
+                        localStorage.setItem('ads_rules_history_'+currentUser.email,JSON.stringify(automatedRulesHistory));
                         renderRulesTable();
-                        if(!document.getElementById('ruleLogsModal').classList.contains('hidden'))openRuleLogsModal();
+                        // Memperbarui UI log secara real-time jika modal sedang terbuka
+                        if(!document.getElementById('ruleLogsModal').classList.contains('hidden')){
+                            const activeRuleName = document.getElementById('logModalRuleName')?.innerText;
+                            const ruleIdFilter = activeRuleName !== 'Semua Aturan' ? automatedRulesHistory.find(r => r.ruleName === activeRuleName)?.ruleId : null;
+                            renderRuleLogsUI(ruleIdFilter, activeRuleName);
+                        }
                     }
                 }
             }catch(e){}
         }
 
-        function openRuleLogsModal(ruleId,ruleName){
-            if(document.getElementById('logModalRuleName'))document.getElementById('logModalRuleName').innerText=ruleName||'Semua Aturan';
+        // Memisahkan fungsi render UI agar tidak terjadi infinite loop saat sinkronisasi
+        function renderRuleLogsUI(ruleId, ruleName) {
             const tbody=document.getElementById('ruleLogsModalBody');
             const mobileContainer=document.getElementById('ruleLogsMobileContainer');
             let logs=automatedRulesHistory;
@@ -718,6 +725,16 @@
                 if(tbody)tbody.innerHTML=htmlStr;
                 if(mobileContainer)mobileContainer.innerHTML=mobileStr;
             }
+        }
+
+        function openRuleLogsModal(ruleId,ruleName){
+            if(document.getElementById('logModalRuleName'))document.getElementById('logModalRuleName').innerText=ruleName||'Semua Aturan';
+            
+            // Sinkronisasi background otomatis ke Google Sheets saat modal Riwayat dibuka
+            // Mencegah data usang (out-of-sync) jika aplikasi dieksekusi di background/device lain
+            fetchLogsFromDB();
+            
+            renderRuleLogsUI(ruleId, ruleName);
             openModal('ruleLogsModal','ruleLogsModalContent');
         }
         function closeRuleLogsModal(){closeModal('ruleLogsModal','ruleLogsModalContent');}
