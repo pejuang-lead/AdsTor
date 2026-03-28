@@ -178,7 +178,7 @@
         let summaryMetrics=JSON.parse(localStorage.getItem('ads_summary_metrics'))||['spend','impressions','cpm','ctr_link'];
         let campaignMetrics=JSON.parse(localStorage.getItem('ads_campaign_metrics'))||['results','cost_per_result','roas','budget'];
         let reportMetrics=JSON.parse(localStorage.getItem('ads_report_metrics'))||['spend','impressions','cpm','ctr_link','results','cost_per_result','roas'];
-        let currentStatusFilter='ALL';let automatedRulesHistory=JSON.parse(localStorage.getItem('ads_rules_history'))||[];let currentCampaignData=[],currentAdSetData=[],currentAdData=[];let currentRuleConditions=[],currentRuleCustomTimes={};let editingConditionId=null,editingRuleId=null;let customDateRange={start:null,end:null},calendarViewDate=new Date();let currentMetricConfigContext='summary';let budgetState={campaignId:null,currentAmount:0,type:'daily',mode:'increase',calcType:'fixed',previewAmount:0};let tempConfigMetrics=[];let reportData=[],reportSearchQuery='',reportSortConfig={key:'spend',dir:'desc'};
+        let currentStatusFilter='ALL';let automatedRulesHistory=[];let currentCampaignData=[],currentAdSetData=[],currentAdData=[];let currentRuleConditions=[],currentRuleCustomTimes={};let editingConditionId=null,editingRuleId=null;let customDateRange={start:null,end:null},calendarViewDate=new Date();let currentMetricConfigContext='summary';let budgetState={campaignId:null,currentAmount:0,type:'daily',mode:'increase',calcType:'fixed',previewAmount:0};let tempConfigMetrics=[];let reportData=[],reportSearchQuery='',reportSortConfig={key:'spend',dir:'desc'};
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -260,6 +260,7 @@
             accounts=currentUser.accounts||[];
             currentAccountId=accounts.length>0?(accounts.some(a=>a.id===localStorage.getItem('ads_active_id'))?localStorage.getItem('ads_active_id'):accounts[0].id):'';
             if(currentAccountId) localStorage.setItem('ads_active_id',currentAccountId); else localStorage.removeItem('ads_active_id');
+            automatedRulesHistory=JSON.parse(localStorage.getItem('ads_rules_history_'+currentUser.email))||[];
             const pE=document.getElementById('profileEmail'),pA=document.getElementById('profileAvatar');
             if(pE) pE.innerText=currentUser.email; if(pA) pA.innerText=currentUser.email.charAt(0).toUpperCase();
             document.getElementById('loginScreen')?.classList.add('hidden');document.getElementById('appWrapper')?.classList.remove('hidden');
@@ -284,7 +285,7 @@
 
         function logout(){
             Swal.fire({title:'Keluar?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'Ya, Keluar'}).then(r=>{
-                if(r.isConfirmed){localStorage.removeItem('ads_current_user');currentUser=null;accounts=[];currentAccountId='';
+                if(r.isConfirmed){localStorage.removeItem('ads_current_user');currentUser=null;accounts=[];currentAccountId='';automatedRulesHistory=[];
                 document.getElementById('appWrapper')?.classList.add('hidden');document.getElementById('loginScreen')?.classList.remove('hidden');
                 document.getElementById('authEmail').value='';document.getElementById('authPassword').value='';
                 Swal.fire({icon:'success',title:'Berhasil Keluar',timer:1500,showConfirmButton:false});}
@@ -422,6 +423,7 @@
         function initAuthSession() {
             currentUser = JSON.parse(localStorage.getItem('ads_current_user'));
             if (currentUser) {
+                automatedRulesHistory=JSON.parse(localStorage.getItem('ads_rules_history_'+currentUser.email))||[];
                 const pEmail = document.getElementById('profileEmail');
                 if (pEmail) pEmail.innerText = currentUser.email;
                 const pAvatar = document.getElementById('profileAvatar');
@@ -926,7 +928,7 @@
                 while (finalBudget > absoluteMin && stepsDone < maxIterations) {
                     let dropAmount = finalBudget * 0.20;
                     if (dropAmount < 1) break; 
-                    
+
                     let newBudget = finalBudget - dropAmount;
                     if (newBudget <= absoluteMin) newBudget = absoluteMin;
 
