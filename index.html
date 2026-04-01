@@ -419,14 +419,29 @@
             const dE=document.getElementById('currentDateDisplay');if(dE)dE.innerText=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
             initTheme();updateHeaderAccountLabel();refreshData();
             
-            // Panggil sync pertama kali agar worker memiliki state awal
             setTimeout(() => syncRulesToWorker(), 2000);
             
-            setInterval(async () => {
-                await fetchLogsFromDB();
-                await runAutomatedRules(null);
-                lastAutomatedRun=Date.now();
-            },ENGINE_CONFIG.interval);
+            const workerCode = `
+                let timer;
+                self.onmessage = function(e) {
+                    if (e.data.action === 'start') {
+                        timer = setInterval(() => self.postMessage('tick'), e.data.interval);
+                    } else if (e.data.action === 'stop') {
+                        clearInterval(timer);
+                    }
+                };
+            `;
+            const blob = new Blob([workerCode], {type: 'application/javascript'});
+            const timerWorker = new Worker(URL.createObjectURL(blob));
+            
+            timerWorker.onmessage = async function(e) {
+                if (e.data === 'tick') {
+                    await fetchLogsFromDB();
+                    await runAutomatedRules(null);
+                    lastAutomatedRun = Date.now();
+                }
+            };
+            timerWorker.postMessage({action: 'start', interval: ENGINE_CONFIG.interval});
             
             document.addEventListener('visibilitychange', async () => {
                 if(document.visibilityState==='visible' && Date.now() - lastAutomatedRun >= ENGINE_CONFIG.interval){
