@@ -54,7 +54,7 @@
             <form id="authForm" onsubmit="handleAuth(event)" class="space-y-5">
                 <div id="authNameGroup" class="hidden"><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Nama Lengkap</label><div class="relative"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" id="authName" placeholder="Nama Anda" class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"></div></div>
                 <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Email</label><div class="relative"><i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="email" id="authEmail" required placeholder="user@email.com" class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"></div></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Password</label><div class="relative"><i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="password" id="authPassword" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"></div></div>
+                <div><label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Password</label><div class="relative"><i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="password" id="authPassword" required placeholder="••••••••" class="w-full pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"><button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition focus:outline-none"><i class="fa-solid fa-eye" id="togglePasswordIcon"></i></button></div></div>
                 <button type="submit" id="authBtnSubmit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm shadow-lg shadow-blue-500/30 active:scale-95 transition min-h-[48px] mt-2">Masuk ke Dashboard</button>
             </form>
             <div class="mt-6 text-center"><button onclick="toggleAuthMode()" id="authBtnSwitch" class="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition">Belum punya akun? <span class="text-blue-600 dark:text-blue-400 underline">Daftar sekarang</span></button></div>
@@ -89,7 +89,10 @@
                     <div class="flex items-center gap-3">
                         <button onclick="toggleSidebar()" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition active:scale-95"><i class="fa-solid fa-bars text-sm"></i></button>
                         <div class="flex md:hidden items-center gap-3"><div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0"><i class="fa-solid fa-bullhorn text-white text-sm"></i></div><h1 class="font-black text-slate-900 dark:text-white tracking-tighter leading-none text-lg">AdsTor</h1></div>
-                        <div class="hidden md:flex items-center ml-2"><h2 class="font-bold text-slate-800 dark:text-white text-lg tracking-tight">Overview Performa</h2></div>
+                        <div class="hidden md:flex items-center ml-2">
+                            <h2 class="font-bold text-slate-800 dark:text-white text-lg tracking-tight">Overview Performa</h2>
+                            <span id="cloudSyncBadge" class="ml-4 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-200 dark:border-emerald-800/50 transition-all"><i class="fa-solid fa-cloud"></i> Cloud 24/7 Standby</span>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2 ml-auto">
                         <button onclick="openAccountSelectModal()" class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 pl-3 pr-3 py-2 rounded-lg hover:border-blue-400 transition active:scale-95 group max-w-[140px] min-h-[44px]"><span id="headerAccountLabel" class="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate">Pilih Akun</span><i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i></button>
@@ -231,6 +234,8 @@
         let isLoginMode=true;
         function toggleAuthMode(){isLoginMode=!isLoginMode;document.getElementById('authBtnSubmit').innerText=isLoginMode?'Masuk ke Dashboard':'Daftar Akun Baru';document.getElementById('authBtnSwitch').innerHTML=isLoginMode?'Belum punya akun? <span class="text-blue-600 dark:text-blue-400 underline">Daftar sekarang</span>':'Sudah punya akun? <span class="text-blue-600 dark:text-blue-400 underline">Masuk sekarang</span>';document.getElementById('authNameGroup').classList.toggle('hidden',isLoginMode);document.getElementById('authName').toggleAttribute('required',!isLoginMode);}
 
+        function togglePasswordVisibility(){const pwd=document.getElementById('authPassword'),icon=document.getElementById('togglePasswordIcon');if(pwd.type==='password'){pwd.type='text';icon.classList.replace('fa-eye','fa-eye-slash');}else{pwd.type='password';icon.classList.replace('fa-eye-slash','fa-eye');}}
+
         async function handleAuth(e){
             e.preventDefault();const email=document.getElementById('authEmail').value.trim(),pass=document.getElementById('authPassword').value,name=document.getElementById('authName').value.trim();
             if(!email||!pass)return Swal.fire('Error','Lengkapi email dan password','error');
@@ -274,13 +279,25 @@
         
         async function syncRulesToWorker() {
             if (!WORKER_URL || !currentUser) return;
+            const badge = document.getElementById('cloudSyncBadge');
+            if(badge) badge.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin"></i> Menyinkronkan...';
             try {
                 const response = await fetch(WORKER_URL, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: currentUser.email, gasUrl: APP_CONFIG.gasUrl, accounts: accounts.map(a=>({id:a.id,adAccountId:a.adAccountId,accessToken:a.accessToken})), rules: currentUser.rules })
+                    body: JSON.stringify({ action: 'sync_rules', email: currentUser.email, gasUrl: APP_CONFIG.gasUrl, accounts: accounts.map(a=>({id:a.id,adAccountId:a.adAccountId,accessToken:a.accessToken})), rules: currentUser.rules })
                 });
-                if (!response.ok) console.warn('Gagal sinkronisasi ke Worker:', response.statusText);
-            } catch (error) { console.error('Error saat sinkronisasi ke Worker:', error); }
+                if (!response.ok) throw new Error('Gagal dari Worker');
+                if(badge) {
+                    badge.className = "ml-4 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-200 dark:border-emerald-800/50 transition-all";
+                    badge.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Cloud 24/7 Aktif';
+                }
+            } catch (error) { 
+                console.error('Error saat sinkronisasi ke Worker:', error); 
+                if(badge) {
+                    badge.className = "ml-4 inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold rounded-lg border border-red-200 dark:border-red-800/50 transition-all";
+                    badge.innerHTML = '<i class="fa-solid fa-cloud-xmark text-red-500"></i> Cloud Disconnected';
+                }
+            }
         }
 
         function logout(){
@@ -401,6 +418,9 @@
             try{const sF=localStorage.getItem('ads_status_filter');if(sF){currentStatusFilter=sF;const fE=document.getElementById('campaignStatusFilter');if(fE)fE.value=sF;}}catch(e){localStorage.clear();}
             const dE=document.getElementById('currentDateDisplay');if(dE)dE.innerText=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
             initTheme();updateHeaderAccountLabel();refreshData();
+            
+            // Panggil sync pertama kali agar worker memiliki state awal
+            setTimeout(() => syncRulesToWorker(), 2000);
             
             setInterval(async () => {
                 await fetchLogsFromDB();
@@ -868,7 +888,7 @@
                     }
                 }
 
-                if (currentConversions < 1) return { result: 'Skipped', note: `Ditunda: Belum ada ${metricLabel} (Minimal 1).` };
+                if (currentConversions < 2) return { result: 'Skipped', note: `Ditunda: ${metricLabel} baru ${currentConversions} (Minimal 2 untuk Scale Up).` };
                 
                 let newConversions = currentConversions - lastResults;
                 if (lastResults > 0 && newConversions <= 0) return { result: 'Skipped', note: `Ditunda: ${metricLabel} stagnan (Saat ini: ${currentConversions}, Memori: ${lastResults})` };
@@ -906,12 +926,12 @@
                     finalBudget = Math.round(newBudget);
                     stepsDone++;
                     if (finalBudget >= targetBudget) break;
-                    await new Promise(r => setTimeout(r, 500));
+                    await new Promise(r => setTimeout(r, 5000));
                 }
 
                 return { 
                     result: 'Success', 
-                    note: `Scale Up bertahap per 20% (${stepsDone} iterasi) hingga x2 tercapai (+${formatIDR(finalBudget - initialBudget)})`, 
+                    note: `Scale Up bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga x2 tercapai (+${formatIDR(finalBudget - initialBudget)})`, 
                     valBefore: formatIDR(initialBudget), 
                     valAfter: formatIDR(finalBudget), 
                     baseline_val: baseline, 
@@ -970,12 +990,12 @@
                     stepsDone++;
                     
                     if (finalBudget <= targetBudget) break;
-                    await new Promise(r => setTimeout(r, 500));
+                    await new Promise(r => setTimeout(r, 5000));
                 }
 
                 return { 
                     result: 'Success', 
-                    note: `Scale Down bertahap per 20% (${stepsDone} iterasi) hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`, 
+                    note: `Scale Down bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`, 
                     valBefore: formatIDR(initialBudget), 
                     valAfter: formatIDR(finalBudget), 
                     baseline_dec_val: baseline, 
@@ -999,14 +1019,14 @@
                 
                 if (currentBudget <= absoluteMin) {
                     let reason = 'Sudah di batas anggaran minimal';
-                    if (currentBudget <= currentSpend) reason = 'Tertahan di batas penyerapan (spend) hari ini';
+                    if (currentBudget <= currentSpend && currentSpend >= minLimit) reason = 'Tertahan di batas penyerapan (spend) hari ini';
                     return { result: 'MinLimitReached', note: reason };
                 }
 
                 let stepsDone = 0;
                 let finalBudget = currentBudget;
                 let initialBudget = currentBudget;
-                let maxIterations = 15;
+                let maxIterations = 50;
 
                 while (finalBudget > absoluteMin && stepsDone < maxIterations) {
                     let dropAmount = finalBudget * 0.20;
@@ -1026,12 +1046,13 @@
                     stepsDone++;
                     
                     if (finalBudget <= absoluteMin) break;
-                    await new Promise(r => setTimeout(r, 500));
+                    
+                    await new Promise(r => setTimeout(r, 5000));
                 }
                 
                 return { 
                     result: 'Success', 
-                    note: `Reset bertahap per 20% (${stepsDone} iterasi) hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, 
+                    note: `Reset bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, 
                     valBefore: formatIDR(initialBudget), 
                     valAfter: formatIDR(finalBudget) 
                 };
