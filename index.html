@@ -386,12 +386,18 @@
                     if(!m)return{met:false,reason:`Filter nama tidak cocok`};
                 }else if(c.type==='STATIC'){
                     let aV=parseFloat(ent[c.m])||0; 
-                    if (c.m === 'cost_per_result' && safeNumber(ent.results) === 0 && safeNumber(ent.spend) > 0) aV = Infinity;
-                    if (c.m === 'cost_purchase' && safeNumber(ent.purchases) === 0 && safeNumber(ent.spend) > 0) aV = Infinity;
-                    if (c.m === 'cost_lead' && safeNumber(ent.leads) === 0 && safeNumber(ent.spend) > 0) aV = Infinity;
-                    if (c.m === 'cost_add_to_cart' && safeNumber(ent.add_to_cart) === 0 && safeNumber(ent.spend) > 0) aV = Infinity;
-                    if (c.m === 'cost_initiate_checkout' && safeNumber(ent.initiate_checkout) === 0 && safeNumber(ent.spend) > 0) aV = Infinity;
-                    if (c.m === 'cost_conversations' && safeNumber(ent.conversations) === 0 && safeNumber(ent.spend) > 0) aV = Infinity;
+                    let isZeroConvCost = false;
+                    if (c.m === 'cost_per_result' && safeNumber(ent.results) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
+                    if (c.m === 'cost_purchase' && safeNumber(ent.purchases) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
+                    if (c.m === 'cost_lead' && safeNumber(ent.leads) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
+                    if (c.m === 'cost_add_to_cart' && safeNumber(ent.add_to_cart) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
+                    if (c.m === 'cost_initiate_checkout' && safeNumber(ent.initiate_checkout) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
+                    if (c.m === 'cost_conversations' && safeNumber(ent.conversations) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
+
+                    if (isZeroConvCost) {
+                        if (c.op === 'greater' || c.op === 'greater_equal') aV = safeNumber(ent.spend);
+                        else aV = Infinity;
+                    }
 
                     let tV=parseRawValue(c.v,c.m);
                     const eL=rule.enableLooseCpr===true||(rule.looseCpr&&String(rule.looseCpr).match(/\d/));
