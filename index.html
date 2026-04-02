@@ -46,7 +46,6 @@
 </head>
 <body class="bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 selection:bg-blue-500 selection:text-white">
     
-    <!-- LOGIN SCREEN -->
     <div id="loginScreen" class="fixed inset-0 z-[200] bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-opacity duration-300 hidden">
         <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-8 transform transition-transform animate-pop">
             <div class="flex justify-center mb-6"><div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30"><i class="fa-solid fa-bullhorn text-white text-3xl"></i></div></div>
@@ -61,10 +60,8 @@
         </div>
     </div>
 
-    <!-- MAIN APP WRAPPER -->
     <div id="appWrapper" class="flex h-[100dvh] w-full overflow-hidden hidden relative">
         <div id="sidebarBackdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity opacity-0"></div>
-        <!-- SIDEBAR -->
         <aside id="sidebar" class="fixed md:relative w-64 md:w-64 h-[100dvh] flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50 md:z-30 shrink-0 transition-all duration-300 -translate-x-full md:translate-x-0 overflow-x-hidden">
             <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 shrink-0 w-64">
                 <div class="flex items-center"><div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0"><i class="fa-solid fa-bullhorn text-white text-sm"></i></div><div class="ml-3"><h1 class="font-black text-slate-900 dark:text-white tracking-tighter leading-none text-lg">AdsTor</h1><p class="text-[8px] font-medium text-slate-500 dark:text-slate-400 tracking-wide mt-0.5 leading-none">Otomatisasi. Optimasi. Skalasi.</p></div></div>
@@ -82,7 +79,6 @@
             </div>
         </aside>
 
-        <!-- MAIN CONTENT PANEL -->
         <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#f8fafc] dark:bg-slate-950 transition-all duration-300">
             <nav class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 shrink-0">
                 <div class="px-4 md:px-8 h-16 flex items-center justify-between">
@@ -141,7 +137,6 @@
         </div>
     </div>
 
-    <!-- MODALS -->
     <div id="adsReportModal" class="fixed inset-0 z-[60] hidden flex items-end md:items-center justify-center md:p-4"><div class="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity" onclick="closeAdsReportModal()"></div><div class="bg-white dark:bg-slate-900 w-full md:max-w-6xl h-[100dvh] md:h-[90vh] flex flex-col rounded-none md:rounded-3xl shadow-2xl relative z-10 transform transition-transform duration-300 translate-y-full md:translate-y-0 md:scale-95 md:opacity-0" id="adsReportModalContent"><div class="px-5 md:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-30 rounded-none md:rounded-t-3xl"><div><h3 class="font-bold text-lg md:text-xl text-slate-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-blue-500"></i> Laporan Akun Iklan</h3><p class="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ringkasan performa lintas akun.</p></div><div class="flex items-center gap-2"><button onclick="exportReportCSV()" class="hidden md:flex bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-2 rounded-lg text-xs font-bold items-center gap-1.5 hover:bg-green-100 dark:hover:bg-green-900/50 transition"><i class="fa-solid fa-file-csv"></i> Export CSV</button><button onclick="closeAdsReportModal()" class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition"><i class="fa-solid fa-xmark text-lg"></i></button></div></div><div class="p-0 md:p-5 overflow-y-auto flex-1 bg-slate-50 dark:bg-slate-950/50 pb-safe-bottom flex flex-col"><div class="p-4 md:p-0 flex flex-col md:flex-row gap-3 mb-2 md:mb-6"><div class="relative w-full md:flex-1 md:min-w-[200px]"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fa-solid fa-briefcase text-slate-400 text-xs"></i></div><select id="reportAccountFilter" onchange="loadAdsReport()" class="w-full appearance-none pl-8 pr-8 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-50 shadow-sm h-11"></select><div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i></div></div><div class="grid grid-cols-2 gap-3 w-full md:w-auto"><button onclick="openDateRangeModal()" class="w-full h-11 flex justify-between items-center px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] md:text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 shadow-sm transition hover:border-blue-400"><span class="flex items-center gap-2 truncate"><i class="fa-solid fa-calendar-day text-slate-400 shrink-0"></i> <span id="reportActiveDateLabel" class="truncate">7 Hari</span></span> <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 shrink-0 ml-1"></i></button><button onclick="openMetricConfigModal('report')" class="w-full h-11 flex justify-center items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] md:text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:border-blue-400 transition truncate"><i class="fa-solid fa-table-columns text-slate-400"></i> Metrik</button></div><div class="relative w-full md:w-48"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fa-solid fa-search text-slate-400 text-xs"></i></div><input type="text" id="reportSearchInput" oninput="reportSearchQuery=this.value;renderReportTable();" placeholder="Cari akun..." class="w-full pl-8 pr-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm h-11 outline-none"></div><button onclick="exportReportCSV()" class="md:hidden w-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"><i class="fa-solid fa-file-csv"></i> Export Data</button></div><div class="hidden md:flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex-1 flex-col min-h-[300px] relative overflow-hidden"><div class="overflow-auto flex-1 w-full relative" style="max-height: 100%;"><table class="w-full text-left border-collapse report-table min-w-max" id="mainReportTable"><thead id="reportTableHead" class="bg-slate-50 dark:bg-slate-900/90 backdrop-blur z-20"></thead><tbody id="reportTableBody" class="bg-white dark:bg-slate-900"></tbody><tfoot id="reportTableFoot" class="bg-slate-50 dark:bg-slate-800 sticky bottom-0 z-20 border-t-2 border-slate-200 dark:border-slate-700"></tfoot></table></div></div><div id="reportMobileContainer" class="md:hidden flex flex-col gap-4 px-4 pb-8"></div></div></div></div>
     <div id="adSetPerformanceModal" class="fixed inset-0 z-[50] hidden flex items-end md:items-center justify-center md:p-4"><div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeAdSetPerformanceModal()"></div><div class="bg-white dark:bg-slate-900 w-full md:max-w-2xl h-[100dvh] md:h-auto md:max-h-[90vh] flex flex-col rounded-none md:rounded-3xl shadow-2xl relative z-10 transform transition-transform duration-300 translate-y-full md:translate-y-0 md:scale-95 md:opacity-0" id="adSetPerformanceModalContent"><div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 rounded-none md:rounded-t-3xl"><div class="flex items-center gap-3"><button onclick="closeAdSetPerformanceModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-50 flex items-center justify-center hover:bg-slate-200 transition md:hidden"><i class="fa-solid fa-arrow-left"></i></button><div><h3 class="font-bold text-lg text-slate-900 dark:text-white">Set Iklan (Ad Set)</h3><p class="text-xs text-slate-500 dark:text-slate-400">Pilih set iklan untuk melihat iklan.</p></div></div><button onclick="closeAdSetPerformanceModal()" class="hidden md:flex w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-lg"></i></button></div><div class="p-4 overflow-y-auto flex-1 space-y-4 pb-safe-bottom bg-slate-50 dark:bg-slate-950/30" id="adSetListContainer"></div></div></div>
     <div id="adPerformanceModal" class="fixed inset-0 z-[60] hidden flex items-end md:items-center justify-center md:p-4"><div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeAdPerformanceModal()"></div><div class="bg-white dark:bg-slate-900 w-full md:max-w-2xl h-[100dvh] md:h-auto md:max-h-[90vh] flex flex-col rounded-none md:rounded-3xl shadow-2xl relative z-10 transform transition-transform duration-300 translate-y-full md:translate-y-0 md:scale-95 md:opacity-0" id="adPerformanceModalContent"><div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 rounded-none md:rounded-t-3xl"><div class="flex items-center gap-3"><button onclick="closeAdPerformanceModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-50 flex items-center justify-center hover:bg-slate-200 transition md:hidden"><i class="fa-solid fa-arrow-left"></i></button><div><h3 class="font-bold text-lg text-slate-900 dark:text-white">Iklan (Ad)</h3><p class="text-xs text-slate-500 dark:text-slate-400">Daftar iklan untuk set iklan ini.</p></div></div><button onclick="closeAdPerformanceModal()" class="hidden md:flex w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-lg"></i></button></div><div class="p-4 overflow-y-auto flex-1 space-y-4 pb-safe-bottom bg-slate-50 dark:bg-slate-950/30" id="adListContainer"></div></div></div>
@@ -916,7 +911,7 @@
 
                 if (currentBudget >= maxLimit) return { result: 'MaxLimitReached', note: 'Batas Scale Up maksimal tercapai' };
 
-                let targetBudget = currentBudget * 2;
+                let targetBudget = baseline * 2;
                 if (targetBudget > maxLimit) targetBudget = maxLimit;
 
                 let stepsDone = 0;
@@ -962,25 +957,26 @@
                 const currentSpend = entity.spend || 0;
                 const state = rule.state[entity.id] || {};
                 let baseline = state.baseline_dec_val || currentBudget;
-                
-                let absoluteMin = currentBudget * 0.50; 
+
+                let targetBudget = currentBudget / 2;
+
+                let absoluteMin = ENGINE_CONFIG.metaMinBudget;
                 if (rule.minBudgetLimit) {
                     const customMin = parseFloat(String(rule.minBudgetLimit).replace(/[^0-9]/g, ''));
                     if (customMin > 0) {
-                        absoluteMin = Math.max(absoluteMin, customMin); 
+                        absoluteMin = Math.max(absoluteMin, customMin);
                     }
                 }
-                
-                absoluteMin = Math.max(absoluteMin, ENGINE_CONFIG.metaMinBudget, currentSpend); 
+
+                absoluteMin = Math.max(absoluteMin, currentSpend);
+
+                if (targetBudget < absoluteMin) targetBudget = absoluteMin;
 
                 if (currentBudget <= absoluteMin) {
                     let reason = 'Batas Scale Down (:2 / Minimal) tercapai';
                     if (currentBudget <= currentSpend) reason = 'Tertahan di batas penyerapan (spend) hari ini';
                     return { result: 'MinLimitReached', note: reason };
                 }
-
-                let targetBudget = currentBudget / 2;
-                if (targetBudget < absoluteMin) targetBudget = absoluteMin;
 
                 let stepsDone = 0;
                 let finalBudget = currentBudget;
@@ -989,32 +985,32 @@
 
                 while (finalBudget > targetBudget && stepsDone < maxIterations) {
                     let decreaseAmount = finalBudget * 0.20;
-                    if (decreaseAmount < 1) break; 
-                    
+                    if (decreaseAmount < 1) break;
+
                     let newBudget = finalBudget - decreaseAmount;
                     if (newBudget <= targetBudget) newBudget = targetBudget;
 
                     const field = entity.budget_type === 'lifetime' ? 'lifetime_budget' : 'daily_budget';
-                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) 
+                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token })
                     });
-                    
+
                     finalBudget = Math.round(newBudget);
                     stepsDone++;
-                    
+
                     if (finalBudget <= targetBudget) break;
                     await new Promise(r => setTimeout(r, 5000));
                 }
 
-                return { 
-                    result: 'Success', 
-                    note: `Scale Down bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`, 
-                    valBefore: formatIDR(initialBudget), 
-                    valAfter: formatIDR(finalBudget), 
-                    baseline_dec_val: baseline, 
-                    step_dec_count: (state.step_dec_count || 0) + stepsDone 
+                return {
+                    result: 'Success',
+                    note: `Scale Down bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`,
+                    valBefore: formatIDR(initialBudget),
+                    valAfter: formatIDR(finalBudget),
+                    baseline_dec_val: baseline,
+                    step_dec_count: (state.step_dec_count || 0) + stepsDone
                 };
             } catch (e) { return { result: 'Failed', note: e.message }; }
         }
@@ -1023,15 +1019,15 @@
             try {
                 let currentBudget = entity.budget;
                 const currentSpend = entity.spend || 0;
-                
+
                 let minLimit = ENGINE_CONFIG.metaMinBudget;
                 if (rule.minBudgetLimit) {
                     const customMin = parseFloat(String(rule.minBudgetLimit).replace(/[^0-9]/g, ''));
                     if (customMin > 0) minLimit = customMin;
                 }
-                
+
                 let absoluteMin = Math.max(minLimit, ENGINE_CONFIG.metaMinBudget, currentSpend);
-                
+
                 if (currentBudget <= absoluteMin) {
                     let reason = 'Sudah di batas anggaran minimal';
                     if (currentBudget <= currentSpend && currentSpend >= minLimit) reason = 'Tertahan di batas penyerapan (spend) hari ini';
@@ -1045,31 +1041,31 @@
 
                 while (finalBudget > absoluteMin && stepsDone < maxIterations) {
                     let dropAmount = finalBudget * 0.20;
-                    if (dropAmount < 1) break; 
+                    if (dropAmount < 1) break;
 
                     let newBudget = finalBudget - dropAmount;
                     if (newBudget <= absoluteMin) newBudget = absoluteMin;
 
                     const field = entity.budget_type === 'lifetime' ? 'lifetime_budget' : 'daily_budget';
-                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) 
+                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token })
                     });
-                    
+
                     finalBudget = Math.round(newBudget);
                     stepsDone++;
-                    
+
                     if (finalBudget <= absoluteMin) break;
-                    
+
                     await new Promise(r => setTimeout(r, 5000));
                 }
-                
-                return { 
-                    result: 'Success', 
-                    note: `Reset bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, 
-                    valBefore: formatIDR(initialBudget), 
-                    valAfter: formatIDR(finalBudget) 
+
+                return {
+                    result: 'Success',
+                    note: `Reset bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`,
+                    valBefore: formatIDR(initialBudget),
+                    valAfter: formatIDR(finalBudget)
                 };
             } catch (e) { return { result: 'Failed', note: e.message }; }
         }
@@ -1120,15 +1116,15 @@
                     let checkedCount = 0;
                     let execValBefore = '';
                     let execValAfter = '';
-                    let processedBudgetIds = new Set(); 
+                    let processedBudgetIds = new Set();
 
                     for (const entity of targetEntities) {
                         const statusCheck = validateEntityStatusForAction(rule.action, entity.status);
                         if (!statusCheck.isValid) { checkedCount++; continue; }
-                        
+
                         const isBudgetAction = ['increase_budget', 'decrease_budget', 'reset_budget'].includes(rule.action);
                         if (isBudgetAction && processedBudgetIds.has(entity.budget_source_id)) {
-                            checkedCount++; 
+                            checkedCount++;
                             continue;
                         }
 
