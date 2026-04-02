@@ -395,8 +395,11 @@
                     if (c.m === 'cost_conversations' && safeNumber(ent.conversations) === 0 && safeNumber(ent.spend) > 0) isZeroConvCost = true;
 
                     if (isZeroConvCost) {
-                        if (c.op === 'greater' || c.op === 'greater_equal') aV = safeNumber(ent.spend);
-                        else aV = Infinity;
+                        if (c.op === 'greater' || c.op === 'greater_equal') {
+                            aV = safeNumber(ent.spend);
+                        } else if (c.op === 'smaller' || c.op === 'smaller_equal') {
+                            aV = Infinity;
+                        }
                     }
 
                     let tV=parseRawValue(c.v,c.m);
@@ -963,61 +966,36 @@
                 const currentSpend = entity.spend || 0;
                 const state = rule.state[entity.id] || {};
                 let baseline = state.baseline_dec_val || currentBudget;
-
                 let targetBudget = currentBudget / 2;
-
                 let absoluteMin = ENGINE_CONFIG.metaMinBudget;
                 if (rule.minBudgetLimit) {
                     const customMin = parseFloat(String(rule.minBudgetLimit).replace(/[^0-9]/g, ''));
-                    if (customMin > 0) {
-                        absoluteMin = Math.max(absoluteMin, customMin);
-                    }
+                    if (customMin > 0) absoluteMin = Math.max(absoluteMin, customMin);
                 }
-
                 absoluteMin = Math.max(absoluteMin, currentSpend);
-
                 if (targetBudget < absoluteMin) targetBudget = absoluteMin;
-
                 if (currentBudget <= absoluteMin) {
                     let reason = 'Batas Scale Down (:2 / Minimal) tercapai';
                     if (currentBudget <= currentSpend) reason = 'Tertahan di batas penyerapan (spend) hari ini';
                     return { result: 'MinLimitReached', note: reason };
                 }
-
                 let stepsDone = 0;
                 let finalBudget = currentBudget;
                 let initialBudget = currentBudget;
                 let maxIterations = 15;
-
                 while (finalBudget > targetBudget && stepsDone < maxIterations) {
                     let decreaseAmount = finalBudget * 0.20;
                     if (decreaseAmount < 1) break;
-
                     let newBudget = finalBudget - decreaseAmount;
                     if (newBudget <= targetBudget) newBudget = targetBudget;
-
                     const field = entity.budget_type === 'lifetime' ? 'lifetime_budget' : 'daily_budget';
-                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token })
-                    });
-
+                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) });
                     finalBudget = Math.round(newBudget);
                     stepsDone++;
-
                     if (finalBudget <= targetBudget) break;
                     await new Promise(r => setTimeout(r, 5000));
                 }
-
-                return {
-                    result: 'Success',
-                    note: `Scale Down bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`,
-                    valBefore: formatIDR(initialBudget),
-                    valAfter: formatIDR(finalBudget),
-                    baseline_dec_val: baseline,
-                    step_dec_count: (state.step_dec_count || 0) + stepsDone
-                };
+                return { result: 'Success', note: `Scale Down bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga :2 tercapai (-${formatIDR(initialBudget - finalBudget)})`, valBefore: formatIDR(initialBudget), valAfter: formatIDR(finalBudget), baseline_dec_val: baseline, step_dec_count: (state.step_dec_count || 0) + stepsDone };
             } catch (e) { return { result: 'Failed', note: e.message }; }
         }
 
@@ -1025,54 +1003,34 @@
             try {
                 let currentBudget = entity.budget;
                 const currentSpend = entity.spend || 0;
-
                 let minLimit = ENGINE_CONFIG.metaMinBudget;
                 if (rule.minBudgetLimit) {
                     const customMin = parseFloat(String(rule.minBudgetLimit).replace(/[^0-9]/g, ''));
                     if (customMin > 0) minLimit = customMin;
                 }
-
                 let absoluteMin = Math.max(minLimit, ENGINE_CONFIG.metaMinBudget, currentSpend);
-
                 if (currentBudget <= absoluteMin) {
                     let reason = 'Sudah di batas anggaran minimal';
                     if (currentBudget <= currentSpend && currentSpend >= minLimit) reason = 'Tertahan di batas penyerapan (spend) hari ini';
                     return { result: 'MinLimitReached', note: reason };
                 }
-
                 let stepsDone = 0;
                 let finalBudget = currentBudget;
                 let initialBudget = currentBudget;
                 let maxIterations = 50;
-
                 while (finalBudget > absoluteMin && stepsDone < maxIterations) {
                     let dropAmount = finalBudget * 0.20;
                     if (dropAmount < 1) break;
-
                     let newBudget = finalBudget - dropAmount;
                     if (newBudget <= absoluteMin) newBudget = absoluteMin;
-
                     const field = entity.budget_type === 'lifetime' ? 'lifetime_budget' : 'daily_budget';
-                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token })
-                    });
-
+                    await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.budget_source_id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: Math.round(newBudget), access_token: token }) });
                     finalBudget = Math.round(newBudget);
                     stepsDone++;
-
                     if (finalBudget <= absoluteMin) break;
-
                     await new Promise(r => setTimeout(r, 5000));
                 }
-
-                return {
-                    result: 'Success',
-                    note: `Reset bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`,
-                    valBefore: formatIDR(initialBudget),
-                    valAfter: formatIDR(finalBudget)
-                };
+                return { result: 'Success', note: `Reset bertahap per 20% (${stepsDone} iterasi) tiap 5 detik hingga batas minimal (-${formatIDR(initialBudget - finalBudget)})`, valBefore: formatIDR(initialBudget), valAfter: formatIDR(finalBudget) };
             } catch (e) { return { result: 'Failed', note: e.message }; }
         }
 
