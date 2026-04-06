@@ -386,8 +386,8 @@
 
         function validateEntityStatusForAction(act,s){
             const isA=s==='ACTIVE',isP=s==='PAUSED';
-            if(['turn_off','increase_budget','decrease_budget','reset_budget'].includes(act)&&!isA)return{isValid:false,reason:"Hanya untuk status Aktif"};
-            if(['turn_on'].includes(act)&&!isP)return{isValid:false,reason:"Hanya untuk status Paused"};
+            if(['turn_off','increase_budget','decrease_budget'].includes(act)&&!isA)return{isValid:false,reason:"Hanya untuk status Aktif"};
+            if(['turn_on','reset_budget'].includes(act)&&!isP)return{isValid:false,reason:"Hanya untuk status Paused"};
             return{isValid:true,reason:""};
         }
 
@@ -941,15 +941,68 @@
                                     execValBefore = execRes.valBefore;
                                     execValAfter = execRes.valAfter;
                                     
-                                    if(rule.action==='increase_budget'){rule.state[entity.id]={...rule.state[entity.id],baseline_val:execRes.baseline_val||entity.budget,step_count:(rule.state[entity.id]?.step_count||0)+execRes.step_count,last_results:execRes.last_results!==undefined?execRes.last_results:entity.results,last_increase:nowISO};}else if(rule.action==='decrease_budget'){rule.state[entity.id]={...rule.state[entity.id],baseline_dec_val:execRes.baseline_dec_val||entity.budget,step_dec_count:(rule.state[entity.id]?.step_dec_count||0)+execRes.step_dec_count,last_decrease:nowISO};}else if(rule.action==='reset_budget'){if(rule.state[entity.id]){rule.state[entity.id].step_count=0;rule.state[entity.id].last_results=0;rule.state[entity.id].step_dec_count=0;}}
-                                }else if(['Skipped','MinLimitReached','MaxLimitReached'].includes(execRes.result)){checkedCount++;}else{failedEntities.push(entity.name);}}
-                        }else{checkedCount++;}}
-                        if(changedEntities.length>0){logRule(rule,rule.target,'EKSEKUSI',changedEntities,getActionSummary(rule),'YA',execValBefore,execValAfter,'YA',`Sukses eksekusi ${changedEntities.length} aset.`,ruleAccount.name);rule.lastExecutedAt=nowISO;stats.executed+=changedEntities.length;}
-                        if(failedEntities.length>0){logRule(rule,rule.target,'EROR',failedEntities,getActionSummary(rule),'YA','-','-','TIDAK',`Gagal eksekusi ${failedEntities.length} aset.`,ruleAccount.name);stats.failed+=failedEntities.length;}
-                        if(checkedCount>0&&changedEntities.length===0&&failedEntities.length===0){logRule(rule,rule.target,'DIPERIKSA',[],getActionSummary(rule),'TIDAK','-','-','TIDAK',`Diperiksa ${checkedCount} aset. Kondisi ditunda/tak terpenuhi.`,ruleAccount.name,checkedCount);stats.checked+=checkedCount;}
-                }catch(err){logRule(rule,rule.target,'EROR',[],'Error','-','-','-','TIDAK',`Error: ${err.message}`,ruleAccount.name);stats.failed++;}}
-            if(globalUpdates){syncUserDB();renderRulesTable();if(!$id('ruleLogsModal').classList.contains('hidden')){const aRN=$id('logModalRuleName')?.innerText;const rIF=aRN!=='Semua Aturan'?automatedRulesHistory.find(r=>r.ruleName===aRN)?.ruleId:null;renderRuleLogsUI(rIF,aRN);}}
-            if(forceRuleId){Swal.fire({icon:'success',title:'Eksekusi Selesai',html:`<div class="mt-4 space-y-3 text-left"><div class="flex justify-between items-center px-4 py-2 bg-slate-800/50 rounded-xl"><span class="font-black text-xl text-green-400">${stats.executed}</span><span class="text-sm text-slate-300 font-medium">Dieksekusi (Berhasil)</span></div><div class="flex justify-between items-center px-4 py-2 bg-slate-800/50 rounded-xl"><span class="font-black text-xl text-white">${stats.checked}</span><span class="text-sm text-slate-300 font-medium">Diperiksa (Tidak Dieksekusi)</span></div><div class="flex justify-between items-center px-4 py-2 bg-slate-800/50 rounded-xl"><span class="font-black text-xl text-red-400">${stats.failed}</span><span class="text-sm text-slate-300 font-medium">Gagal (Error)</span></div></div>`,background:'#0f172a',color:'#ffffff',confirmButtonText:'OK',confirmButtonColor:'#3b82f6'}).then(()=>{if(stats.executed>0)refreshData();});}else{if(stats.executed>0)refreshData();}}
+                                    if(rule.action==='increase_budget'){
+                                        rule.state[entity.id]={...rule.state[entity.id],baseline_val:execRes.baseline_val||entity.budget,step_count:(rule.state[entity.id]?.step_count||0)+execRes.step_count,last_results:execRes.last_results!==undefined?execRes.last_results:entity.results,last_increase:nowISO};
+                                    }else if(rule.action==='decrease_budget'){
+                                        rule.state[entity.id]={...rule.state[entity.id],baseline_dec_val:execRes.baseline_dec_val||entity.budget,step_dec_count:(rule.state[entity.id]?.step_dec_count||0)+execRes.step_dec_count,last_decrease:nowISO};
+                                    }else if(rule.action==='reset_budget'){
+                                        if(rule.state[entity.id]){
+                                            rule.state[entity.id].step_count=0;
+                                            rule.state[entity.id].last_results=0;
+                                            rule.state[entity.id].step_dec_count=0;
+                                        }
+                                    }
+                                }else if(['Skipped','MinLimitReached','MaxLimitReached'].includes(execRes.result)){
+                                    checkedCount++;
+                                }else{
+                                    failedEntities.push(entity.name);
+                                }
+                            }
+                        }else{
+                            checkedCount++;
+                        }
+                    }
+                    if(changedEntities.length>0){
+                        logRule(rule,rule.target,'EKSEKUSI',changedEntities,getActionSummary(rule),'YA',execValBefore,execValAfter,'YA',`Sukses eksekusi ${changedEntities.length} aset.`,ruleAccount.name);
+                        rule.lastExecutedAt=nowISO;
+                        stats.executed+=changedEntities.length;
+                    }
+                    if(failedEntities.length>0){
+                        logRule(rule,rule.target,'EROR',failedEntities,getActionSummary(rule),'YA','-','-','TIDAK',`Gagal eksekusi ${failedEntities.length} aset.`,ruleAccount.name);
+                        stats.failed+=failedEntities.length;
+                    }
+                    if(checkedCount>0&&changedEntities.length===0&&failedEntities.length===0){
+                        logRule(rule,rule.target,'DIPERIKSA',[],getActionSummary(rule),'TIDAK','-','-','TIDAK',`Diperiksa ${checkedCount} aset. Kondisi ditunda/tak terpenuhi.`,ruleAccount.name,checkedCount);
+                        stats.checked+=checkedCount;
+                    }
+                }catch(err){
+                    logRule(rule,rule.target,'EROR',[],'Error','-','-','-','TIDAK',`Error: ${err.message}`,ruleAccount.name);
+                    stats.failed++;
+                }
+            }
+            if(globalUpdates){
+                syncUserDB();
+                renderRulesTable();
+                if(!$id('ruleLogsModal').classList.contains('hidden')){
+                    const aRN=$id('logModalRuleName')?.innerText;
+                    const rIF=aRN!=='Semua Aturan'?automatedRulesHistory.find(r=>r.ruleName===aRN)?.ruleId:null;
+                    renderRuleLogsUI(rIF,aRN);
+                }
+            }
+            if(forceRuleId){
+                Swal.fire({
+                    icon:'success',
+                    title:'Eksekusi Selesai',
+                    html:`<div class="mt-4 space-y-3 text-left"><div class="flex justify-between items-center px-4 py-2 bg-slate-800/50 rounded-xl"><span class="font-black text-xl text-green-400">${stats.executed}</span><span class="text-sm text-slate-300 font-medium">Dieksekusi (Berhasil)</span></div><div class="flex justify-between items-center px-4 py-2 bg-slate-800/50 rounded-xl"><span class="font-black text-xl text-white">${stats.checked}</span><span class="text-sm text-slate-300 font-medium">Diperiksa (Tidak Dieksekusi)</span></div><div class="flex justify-between items-center px-4 py-2 bg-slate-800/50 rounded-xl"><span class="font-black text-xl text-red-400">${stats.failed}</span><span class="text-sm text-slate-300 font-medium">Gagal (Error)</span></div></div>`,
+                    background:'#0f172a',
+                    color:'#ffffff',
+                    confirmButtonText:'OK',
+                    confirmButtonColor:'#3b82f6'
+                }).then(()=>{if(stats.executed>0)refreshData();});
+            }else{
+                if(stats.executed>0)refreshData();
+            }
+        }
             
         document.addEventListener('DOMContentLoaded', initAuthSession);
     </script>
