@@ -384,6 +384,7 @@
             return (eJ.data||[]).map(e=>normalizeEntityData(e,iMap[e.id],tgt,pConf,'act_'+c.adAccountId.replace(/^act_/i,'')));
         }
 
+        // VALIDASI STATUS UNTUK SETIAP AKSI
         function validateEntityStatusForAction(act,s){
             const isA=s==='ACTIVE',isP=s==='PAUSED';
             if(['turn_off','increase_budget','decrease_budget'].includes(act)&&!isA)return{isValid:false,reason:"Hanya untuk status Aktif"};
@@ -391,8 +392,15 @@
             return{isValid:true,reason:""};
         }
 
+        // CEGAH PEMATIAN TERLALU CEPAT
         function evaluateRuleConditions(rule, ent) {
             if (!rule.conditions || !rule.conditions.length) return { met: false, r: "Kosong" };
+            
+            // ANTI PREMATURE KILL (Minimal spend Rp 1.000)
+            if (rule.action === 'turn_off' && safeNumber(ent.spend) < 1000) {
+                return { met: false, r: "Spend < 1.000 (Prematur)" };
+            }
+
             const cmap = { 'cost_per_result': 'results', 'cost_purchase': 'purchases', 'cost_lead': 'leads', 'cost_add_to_cart': 'add_to_cart', 'cost_initiate_checkout': 'initiate_checkout', 'cost_conversations': 'conversations' };
             for (const c of rule.conditions) {
                 if (c.type === 'FILTER') {
@@ -518,7 +526,25 @@
         function processDataAndUI(d){const g=$id('summaryGrid');if(g){let s={spend:0,impressions:0,clicks:0,link_clicks:0,reach:0,purchases:0,purchase_value:0,results:0,add_to_cart:0,initiate_checkout:0,leads:0,conversations:0,landing_page_view:0,post_engagement:0};d.forEach(c=>{s.spend+=safeNumber(c.spend);s.impressions+=safeNumber(c.impressions);s.clicks+=safeNumber(c.clicks);s.link_clicks+=safeNumber(c.link_clicks);s.reach+=safeNumber(c.reach);s.purchases+=safeNumber(c.purchases);s.purchase_value+=safeNumber(c.purchase_value);s.results+=safeNumber(c.results);s.add_to_cart+=safeNumber(c.add_to_cart);s.initiate_checkout+=safeNumber(c.initiate_checkout);s.leads+=safeNumber(c.leads);s.conversations+=safeNumber(c.conversations);s.landing_page_view+=safeNumber(c.landing_page_view);s.post_engagement+=safeNumber(c.post_engagement);});if(s.impressions>0){s.cpm=(s.spend/s.impressions)*1000;s.ctr_link=(s.link_clicks/s.impressions)*100;s.ctr_all=(s.clicks/s.impressions)*100;}if(s.reach>0)s.frequency=s.impressions/s.reach;if(s.results>0)s.cost_per_result=s.spend/s.results;if(s.purchases>0)s.cost_purchase=s.spend/s.purchases;if(s.spend>0){s.roas=s.purchase_value/s.spend;if(s.link_clicks>0)s.cpc_link=s.spend/s.link_clicks;if(s.add_to_cart>0)s.cost_add_to_cart=s.spend/s.add_to_cart;if(s.initiate_checkout>0)s.cost_initiate_checkout=s.spend/s.initiate_checkout;if(s.leads>0)s.cost_lead=s.spend/s.leads;if(s.conversations>0)s.cost_conversations=s.spend/s.conversations;}g.innerHTML=summaryMetrics.map(k=>{const m=METRIC_REGISTRY[k];return m?`<div class="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 card-shadow flex flex-col justify-center relative overflow-hidden"><div class="flex items-center gap-2 mb-2 z-10"><div class="w-7 h-7 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-500"><i class="fa-solid ${m.icon} text-[10px]"></i></div><p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">${m.label}</p></div><h4 class="text-xl font-black ${m.color} z-10 truncate">${m.format(s[k]||0)}</h4></div>`:'';}).join('');}const l=$id('campaignList');if(l){let f=d;if(currentStatusFilter!=='ALL'){f=currentStatusFilter==='DELIVERING'?d.filter(c=>c.effective_status==='DELIVERING'||c.impressions>0||c.spend>0):d.filter(c=>c.effective_status===currentStatusFilter);}if(f.length===0)l.innerHTML=`<div class="text-center py-10 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800"><i class="fa-solid fa-folder-open text-slate-300 text-4xl mb-3"></i><p class="text-sm font-medium text-slate-500">Tidak ada kampanye.</p></div>`;else l.innerHTML=f.map(c=>createListItem(c,'Campaign',`openAdSetPerformanceModal('${c.id}')`)).join('');}}
 
         function renderToggle(id,c,d,fn){return `<label class="relative inline-flex items-center ${d?'opacity-50 cursor-not-allowed grayscale':'cursor-pointer'}"><input type="checkbox" class="sr-only peer" onchange="${fn}" ${c?'checked':''} ${d?'disabled':''}><div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500 shadow-sm"></div></label>`;}
-        function createListItem(c,lvl,fn){const s=STATUS_CONFIG[c.effective_status]||STATUS_CONFIG['UNKNOWN'],t=!['ACTIVE','PAUSED','CAMPAIGN_PAUSED','ADSET_PAUSED','AD_PAUSED','IN_REVIEW','PENDING_REVIEW'].includes(c.effective_status),tg=renderToggle(c.id,c.status==='ACTIVE',t,`toggle${lvl}Status('${c.id}', this)`),nm=escapeHtml(c.name),th=lvl==='Ad'?`<h4 class="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 pr-2">${nm}</h4>`:`<button onclick="${fn}" class="text-left font-semibold text-sm text-slate-900 dark:text-white hover:text-blue-600 transition group line-clamp-2 w-full pr-2">${nm} <i class="fa-solid fa-chevron-right text-[10px] ml-1 opacity-30 group-hover:opacity-100 transition-all"></i></button>`,mh=campaignMetrics.map(k=>{const cf=METRIC_REGISTRY[k];if(!cf)return '';if(k==='budget')return `<div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 flex items-center justify-between"><div><p class="text-[9px] text-slate-400 uppercase font-bold truncate">${cf.label}</p><p class="text-xs font-black text-slate-700 dark:text-slate-200 mt-1">${cf.format(c[k]||0)}</p></div><button onclick="openBudgetModal('${c.budget_source_id}', ${c.budget}, '${c.budget_type}', '${c.budget_source_level}')" class="w-7 h-7 flex items-center justify-center bg-white dark:bg-slate-700 rounded-full text-slate-50 hover:text-blue-600 shadow-sm border border-slate-200 dark:border-slate-600 transition"><i class="fa-solid fa-pencil text-[10px]"></i></button></div>`;return `<div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 relative"><p class="text-[9px] text-slate-400 uppercase font-bold truncate">${cf.label}</p><p class="text-xs font-black text-slate-700 dark:text-slate-200 mt-1">${c[k]===null?"—":cf.format(c[k]||0)}</p></div>`;}).join('');return `<div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 card-shadow mb-4"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3"><div class="flex-1 min-w-0 pr-2">${th}</div><div class="flex items-center gap-3 shrink-0"><span class="status-badge ${s.color}"><i class="fa-solid ${s.icon} text-[8px]"></i> ${s.label}</span><div class="relative inline-flex items-center">${tg}</div></div></div><div class="grid grid-cols-2 md:grid-cols-4 gap-3">${mh}</div></div>`;}
+        
+        function createListItem(c,lvl,fn){
+            const s=STATUS_CONFIG[c.effective_status]||STATUS_CONFIG['UNKNOWN'];
+            const t=!['ACTIVE','PAUSED','CAMPAIGN_PAUSED','ADSET_PAUSED','AD_PAUSED','IN_REVIEW','PENDING_REVIEW'].includes(c.effective_status);
+            const tg=renderToggle(c.id,c.status==='ACTIVE',t,`toggle${lvl}Status('${c.id}', this)`);
+            const nm=escapeHtml(c.name);
+            const th=lvl==='Ad'?`<h4 class="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 pr-2">${nm}</h4>`:`<button onclick="${fn}" class="text-left font-semibold text-sm text-slate-900 dark:text-white hover:text-blue-600 transition group line-clamp-2 w-full pr-2">${nm} <i class="fa-solid fa-chevron-right text-[10px] ml-1 opacity-30 group-hover:opacity-100 transition-all"></i></button>`;
+            
+            const mh=campaignMetrics.map(k=>{
+                const cf=METRIC_REGISTRY[k];
+                if(!cf)return '';
+                if(k==='budget') {
+                    return `<div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 flex items-center justify-between"><div><p class="text-[9px] text-slate-400 uppercase font-bold truncate">${cf.label}</p><p class="text-xs font-black text-slate-700 dark:text-slate-200 mt-1">${cf.format(c[k]||0)}</p></div><button onclick="openBudgetModal('${c.budget_source_id}', ${c.budget}, '${c.budget_type}', '${c.budget_source_level}')" class="w-7 h-7 flex items-center justify-center bg-white dark:bg-slate-700 rounded-full text-slate-50 hover:text-blue-600 shadow-sm border border-slate-200 dark:border-slate-600 transition"><i class="fa-solid fa-pencil text-[10px]"></i></button></div>`;
+                }
+                return `<div class="px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 relative"><p class="text-[9px] text-slate-400 uppercase font-bold truncate">${cf.label}</p><p class="text-xs font-black text-slate-700 dark:text-slate-200 mt-1">${c[k]===null?"—":cf.format(c[k]||0)}</p></div>`;
+            }).join('');
+            
+            return `<div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 card-shadow mb-4"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3"><div class="flex-1 min-w-0 pr-2">${th}</div><div class="flex items-center gap-3 shrink-0"><span class="status-badge ${s.color}"><i class="fa-solid ${s.icon} text-[8px]"></i> ${s.label}</span><div class="relative inline-flex items-center">${tg}</div></div></div><div class="grid grid-cols-2 md:grid-cols-4 gap-3">${mh}</div></div>`;
+        }
 
         function openAdSetPerformanceModal(id){activeCampaignId=id;fetchAndRenderAdSets(id);openModal('adSetPerformanceModal','adSetPerformanceModalContent');}
         function closeAdSetPerformanceModal(){closeModal('adSetPerformanceModal','adSetPerformanceModalContent');}
@@ -635,11 +661,13 @@
             const rules=currentUser.rules||[];
             const accId=$id('rulesAccountFilter')?.value||'';
             const fRules=rules.filter(r=>accId?r.adAccountId===accId:true);
+            
             if(fRules.length===0){
                 tbody.innerHTML='<tr><td colspan="7" class="text-center py-10 text-slate-500">Belum ada aturan.</td></tr>';
                 mob.innerHTML='<div class="text-center py-10 text-slate-500 text-sm border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">Belum ada aturan otomatis.</div>';
                 return;
             }
+            
             let tH='', mH='';
             fRules.forEach(r=>{
                 const isActive = r.isActive !== false;
@@ -647,10 +675,12 @@
                 let lLog=automatedRulesHistory.find(l=>String(l.ruleId)===String(r.id));
                 let resH=`<span class="text-slate-500 italic text-[11px]">Belum eksekusi</span>`;
                 let rCol='text-slate-500';
+                
                 if(lLog){
                     rCol=lLog.result==='EKSEKUSI'?'text-green-500':(lLog.result==='EROR'?'text-red-500':'text-blue-500');
                     resH=`<span class="font-bold text-[11px] ${rCol}">${lLog.result}</span><br><button onclick="openRuleLogsModal('${r.id}', '${escapeHtml(r.name)}')" class="text-[10px] text-blue-500 hover:underline mt-1">Detail Log &raquo;</button>`;
                 }
+                
                 let tMain=(r.target==='campaign'?'Kampanye':(r.target==='adset'?'Set Iklan':'Iklan'))+(r.action==='turn_on'?' PAUSED':' AKTIF');
                 let nFils=r.conditions.filter(c=>c.type==='FILTER');
                 let tSub=nFils.length>0?nFils.map(f=>`Nama ${f.op==='contains'?'ada':'tanpa'} "${f.v}"`).join(', '):'Semua aset';
@@ -659,10 +689,60 @@
                 let sMain=r.schedule==='continuous'?'Setiap 5 menit':(r.schedule==='daily'?'Harian':'Kustom');
                 let sSub=r.schedule==='custom'&&r.customSchedule?(r.customSchedule.times?`Kustom pada ${r.customSchedule.days?.length||0} hari`:`Jam ${r.customSchedule.timeStart}-${r.customSchedule.timeEnd}`):'';
                 
-                tH+=`<tr class="hover:bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800/50"><td class="pl-6 py-5 left-align"><div class="font-bold text-sm text-slate-900 dark:text-white">${escapeHtml(r.name)}</div><div class="text-[10px] text-slate-500">${r.target} - ${r.conditions?.length||0} Kondisi</div></td><td class="text-center py-5"><div class="flex flex-col items-center gap-1">${tog}${isActive?'<span class="text-[9px] font-black text-green-500">AKTIF</span>':'<span class="text-[9px] font-black text-slate-400">NONAKTIF</span>'}</div></td><td class="left-align py-5"><div class="text-xs font-bold text-slate-800 dark:text-slate-200">${tMain}</div><div class="text-[10px] text-slate-500">${tSub}</div></td><td class="left-align py-5"><div class="text-xs font-bold text-blue-700 dark:text-blue-400">${getActionSummary(r)}</div><div class="text-[10px] text-slate-500">${cSub}</div></td><td class="left-align py-5">${resH}</td><td class="left-align py-5"><div class="text-xs font-bold text-slate-800 dark:text-slate-200">${sMain}</div><div class="text-[10px] text-slate-500">${sSub}</div></td><td class="pr-6 text-right py-5"><div class="flex items-center justify-end gap-1.5"><button onclick="runRuleManually('${r.id}')" class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"><i class="fa-solid fa-play text-xs"></i></button><button onclick="editRule('${r.id}')" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-teal-600 flex items-center justify-center"><i class="fa-solid fa-pencil text-xs"></i></button><button onclick="deleteRule('${r.id}')" class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button></div></td></tr>`;
+                tH+=`<tr class="hover:bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800/50">
+                    <td class="pl-6 py-5 left-align">
+                        <div class="font-bold text-sm text-slate-900 dark:text-white">${escapeHtml(r.name)}</div>
+                        <div class="text-[10px] text-slate-500">${r.target} - ${r.conditions?.length||0} Kondisi</div>
+                    </td>
+                    <td class="text-center py-5">
+                        <div class="flex flex-col items-center gap-1">${tog}${isActive?'<span class="text-[9px] font-black text-green-500">AKTIF</span>':'<span class="text-[9px] font-black text-slate-400">NONAKTIF</span>'}</div>
+                    </td>
+                    <td class="left-align py-5">
+                        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">${tMain}</div>
+                        <div class="text-[10px] text-slate-500">${tSub}</div>
+                    </td>
+                    <td class="left-align py-5">
+                        <div class="text-xs font-bold text-blue-700 dark:text-blue-400">${getActionSummary(r)}</div>
+                        <div class="text-[10px] text-slate-500">${cSub}</div>
+                    </td>
+                    <td class="left-align py-5">${resH}</td>
+                    <td class="left-align py-5">
+                        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">${sMain}</div>
+                        <div class="text-[10px] text-slate-500">${sSub}</div>
+                    </td>
+                    <td class="pr-6 text-right py-5">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button onclick="runRuleManually('${r.id}')" class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"><i class="fa-solid fa-play text-xs"></i></button>
+                            <button onclick="editRule('${r.id}')" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-teal-600 flex items-center justify-center"><i class="fa-solid fa-pencil text-xs"></i></button>
+                            <button onclick="deleteRule('${r.id}')" class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
 
-                mH+=`<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4"><div class="flex justify-between items-start gap-3"><div class="flex-1"><p class="font-bold text-sm text-slate-900 dark:text-white leading-tight break-words">${escapeHtml(r.name)}</p></div><div class="shrink-0 flex flex-col items-end gap-1.5">${tog}${isActive?'<span class="text-[9px] font-black text-green-500">AKTIF</span>':'<span class="text-[9px] font-black text-slate-400">NONAKTIF</span>'}</div></div><div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col gap-2"><p class="text-[11px] font-bold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-bolt text-blue-500 mr-1"></i> ${getActionSummary(r)}</p><div class="flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-2 mt-1"><span class="font-bold text-[10px] ${rCol}">${lLog?lLog.result:'Belum eksekusi'}</span><button onclick="openRuleLogsModal('${r.id}', '${escapeHtml(r.name)}')" class="text-blue-500 hover:underline font-bold">Lihat Log</button></div></div><div class="flex justify-between pt-1 gap-2"><button onclick="runRuleManually('${r.id}')" class="flex-1 py-2 text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center gap-1.5"><i class="fa-solid fa-play text-[10px]"></i> Jalankan</button><button onclick="editRule('${r.id}')" class="w-10 flex items-center justify-center text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 rounded-lg"><i class="fa-solid fa-pencil"></i></button><button onclick="deleteRule('${r.id}')" class="w-10 flex items-center justify-center text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg"><i class="fa-solid fa-trash"></i></button></div></div>`;
+                mH+=`<div class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+                    <div class="flex justify-between items-start gap-3">
+                        <div class="flex-1">
+                            <p class="font-bold text-sm text-slate-900 dark:text-white leading-tight break-words">${escapeHtml(r.name)}</p>
+                        </div>
+                        <div class="shrink-0 flex flex-col items-end gap-1.5">
+                            ${tog}${isActive?'<span class="text-[9px] font-black text-green-500">AKTIF</span>':'<span class="text-[9px] font-black text-slate-400">NONAKTIF</span>'}
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col gap-2">
+                        <p class="text-[11px] font-bold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-bolt text-blue-500 mr-1"></i> ${getActionSummary(r)}</p>
+                        <div class="flex justify-between items-center text-[10px] text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
+                            <span class="font-bold text-[10px] ${rCol}">${lLog?lLog.result:'Belum eksekusi'}</span>
+                            <button onclick="openRuleLogsModal('${r.id}', '${escapeHtml(r.name)}')" class="text-blue-500 hover:underline font-bold">Lihat Log</button>
+                        </div>
+                    </div>
+                    <div class="flex justify-between pt-1 gap-2">
+                        <button onclick="runRuleManually('${r.id}')" class="flex-1 py-2 text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center gap-1.5"><i class="fa-solid fa-play text-[10px]"></i> Jalankan</button>
+                        <button onclick="editRule('${r.id}')" class="w-10 flex items-center justify-center text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 rounded-lg"><i class="fa-solid fa-pencil"></i></button>
+                        <button onclick="deleteRule('${r.id}')" class="w-10 flex items-center justify-center text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>`;
             });
+            
             tbody.innerHTML=tH;
             mob.innerHTML=mH;
         }
@@ -857,6 +937,7 @@
             });
         }
 
+        // AKSI STATUS (Matikan / Nyalakan)
         async function executeRuleActionStatus(rule, entity, newStatus, token, apiVer) {
             try {
                 await fetchMetaApi(`https://graph.facebook.com/${apiVer}/${entity.id}`, {
@@ -870,9 +951,91 @@
             }
         }
 
-        async function executeIncreaseBudget(r,e,t,a){try{let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_val||cB,lR=st.last_results||0,cC=0,mL='Konversi',gC=r.conditions.find(c=>c.type==='GROWTH');if(gC){cC=safeNumber(e[gC.m]);mL=METRIC_REGISTRY[gC.m]?.label||gC.label;}else{let f=false;for(let c of r.conditions){if(c.m.includes('purchase')||c.m==='roas'){cC=safeNumber(e.purchases);mL='Pembelian';f=true;break;}else if(c.m.includes('add_to_cart')){cC=safeNumber(e.add_to_cart);mL='Add to Cart';f=true;break;}else if(c.m.includes('lead')){cC=safeNumber(e.leads);mL='Prospek';f=true;break;}else if(c.m.includes('checkout')){cC=safeNumber(e.initiate_checkout);mL='Initiate Checkout';f=true;break;}else if(c.m.includes('conversation')){cC=safeNumber(e.conversations);mL='Percakapan';f=true;break;}else if(c.m==='results'||c.m==='cost_per_result'){cC=safeNumber(e.results);mL='Hasil';f=true;break;}}if(!f){cC=Math.max(safeNumber(e.purchases),safeNumber(e.leads),safeNumber(e.add_to_cart),safeNumber(e.initiate_checkout),safeNumber(e.conversations));mL='Konversi Murni';}}if(cC<2)return{result:'Skipped',note:`Ditunda: ${mL} baru ${cC} (Min 2)`};if(lR>0&&(cC-lR)<=0)return{result:'Skipped',note:`Ditunda: ${mL} stagnan`};let mx=bs*2;if(r.budgetLimit){const cM=parseFloat(String(r.budgetLimit).replace(/[^0-9]/g,''));if(cM>0)mx=cM;}if(cB>=mx)return{result:'MaxLimitReached',note:'Batas Scale Up maksimal tercapai'};let tB=Math.min(bs*2,mx),sD=0,fB=cB,iB=cB;while(fB<tB&&sD<15){let iA=fB*0.2;if(iA<1)break;let nB=Math.min(fB+iA,tB);await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});fB=Math.round(nB);sD++;if(fB>=tB)break;await new Promise(res=>setTimeout(res,5000));}return{result:'Success',note:`Scale Up per 20% (${sD}x) +${formatIDR(fB-iB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB),baseline_val:bs,last_results:cC,step_count:(st.step_count||0)+sD};}catch(x){return{result:'Failed',note:x.message};}}
-        async function executeDecreaseBudget(r,e,t,a){try{let cB=e.budget,cS=e.spend||0,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,tB=cB/2,aM=ENGINE_CONFIG.metaMinBudget;if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)aM=Math.max(aM,cM);}aM=Math.max(aM,cS);if(tB<aM)tB=aM;if(cB<=aM)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan':'Batas Scale Down tercapai'};let sD=0,fB=cB,iB=cB;while(fB>tB&&sD<15){let dA=fB*0.2;if(dA<1)break;let nB=Math.max(fB-dA,tB);await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});fB=Math.round(nB);sD++;if(fB<=tB)break;await new Promise(res=>setTimeout(res,5000));}return{result:'Success',note:`Scale Down per 20% (${sD}x) -${formatIDR(iB-fB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB),baseline_dec_val:bs,step_dec_count:(st.step_dec_count||0)+sD};}catch(x){return{result:'Failed',note:x.message};}}
-        async function executeResetBudget(r,e,t,a){try{let cB=e.budget,cS=e.spend||0,mL=ENGINE_CONFIG.metaMinBudget;if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)mL=cM;}let aM=Math.max(mL,ENGINE_CONFIG.metaMinBudget,cS);if(cB<=aM)return{result:'MinLimitReached',note:cB<=cS&&cS>=mL?'Tertahan batas penyerapan':'Sudah di batas minimal'};let sD=0,fB=cB,iB=cB;while(fB>aM&&sD<50){let dA=fB*0.2;if(dA<1)break;let nB=Math.max(fB-dA,aM);await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});fB=Math.round(nB);sD++;if(fB<=aM)break;await new Promise(res=>setTimeout(res,5000));}return{result:'Success',note:`Reset per 20% (${sD}x) -${formatIDR(iB-fB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB)};}catch(x){return{result:'Failed',note:x.message};}}
+        // AKSI NAIKKAN BUDGET (Scale Up)
+        async function executeIncreaseBudget(r,e,t,a){
+            try{
+                let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_val||cB,lR=st.last_results||0,cC=0,mL='Konversi',gC=r.conditions.find(c=>c.type==='GROWTH');
+                if(gC){cC=safeNumber(e[gC.m]);mL=METRIC_REGISTRY[gC.m]?.label||gC.label;}else{let f=false;for(let c of r.conditions){if(c.m.includes('purchase')||c.m==='roas'){cC=safeNumber(e.purchases);mL='Pembelian';f=true;break;}else if(c.m.includes('add_to_cart')){cC=safeNumber(e.add_to_cart);mL='Add to Cart';f=true;break;}else if(c.m.includes('lead')){cC=safeNumber(e.leads);mL='Prospek';f=true;break;}else if(c.m.includes('checkout')){cC=safeNumber(e.initiate_checkout);mL='Initiate Checkout';f=true;break;}else if(c.m.includes('conversation')){cC=safeNumber(e.conversations);mL='Percakapan';f=true;break;}else if(c.m==='results'||c.m==='cost_per_result'){cC=safeNumber(e.results);mL='Hasil';f=true;break;}}if(!f){cC=Math.max(safeNumber(e.purchases),safeNumber(e.leads),safeNumber(e.add_to_cart),safeNumber(e.initiate_checkout),safeNumber(e.conversations));mL='Konversi Murni';}}
+                
+                // Syarat ketat konversi
+                if(cC<2)return{result:'Skipped',note:`Ditunda: ${mL} baru ${cC} (Min 2)`};
+                if(lR>0&&(cC-lR)<=0)return{result:'Skipped',note:`Ditunda: ${mL} stagnan`};
+                
+                // Validasi batas atas (Hard Cap)
+                let mx=bs*2; 
+                if(r.budgetLimit){const cM=parseFloat(String(r.budgetLimit).replace(/[^0-9]/g,''));if(cM>0)mx=cM;}
+                if(cB>=mx)return{result:'MaxLimitReached',note:'Batas Scale Up maksimal tercapai'};
+                
+                let tB=Math.min(bs*2,mx),sD=0,fB=cB,iB=cB;
+                while(fB<tB&&sD<15){ // Maksimal 15 Step
+                    let iA=fB*0.2; // Naik 20% bertahap
+                    if(iA<1)break;
+                    let nB=Math.min(fB+iA,tB);
+                    try{
+                        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+                        fB=Math.round(nB);sD++;
+                        if(fB>=tB)break;
+                        await new Promise(res=>setTimeout(res,5000)); // Jeda aman 5 detik
+                    }catch(apiErr){
+                        break;
+                    }
+                }
+                return{result:'Success',note:`Scale Up per 20% (${sD}x) +${formatIDR(fB-iB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB),baseline_val:bs,last_results:cC,step_count:(st.step_count||0)+sD};
+            }catch(x){return{result:'Failed',note:x.message};}
+        }
+        
+        // AKSI TURUNKAN BUDGET (Scale Down)
+        async function executeDecreaseBudget(r,e,t,a){
+            try{
+                let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,tB=cB/2,aM=ENGINE_CONFIG.metaMinBudget;
+                // Validasi batas bawah (Min Limit)
+                if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)aM=Math.max(aM,cM);}
+                // Proteksi wajib: Tidak boleh di bawah spend hari ini
+                aM = Math.max(aM, safeNumber(e.spend));
+                
+                if(tB<aM)tB=aM;
+                if(cB<=aM)return{result:'MinLimitReached',note:'Sudah di batas minimal atau tertahan spend'};
+                
+                let sD=0,fB=cB,iB=cB;
+                while(fB>tB&&sD<15){ // Maksimal 15 Step
+                    let dA=fB*0.2; // Turun 20% bertahap
+                    if(dA<1)break;
+                    let nB=Math.max(fB-dA,aM);
+                    try {
+                        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+                        fB=Math.round(nB);sD++;
+                        if(fB<=tB)break;
+                        await new Promise(res=>setTimeout(res,5000));
+                    } catch(e) {
+                        break;
+                    }
+                }
+                return{result:'Success',note:`Scale Down per 20% (${sD}x) -${formatIDR(iB-fB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB),baseline_dec_val:bs,step_dec_count:(st.step_dec_count||0)+sD};
+            }catch(x){return{result:'Failed',note:x.message};}
+        }
+
+        async function executeResetBudget(r,e,t,a){
+            try{
+                let cB=e.budget,cS=e.spend||0,mL=ENGINE_CONFIG.metaMinBudget;
+                if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)mL=cM;}
+                let aM=Math.max(mL,ENGINE_CONFIG.metaMinBudget,cS);
+                if(cB<=aM)return{result:'MinLimitReached',note:cB<=cS&&cS>=mL?'Tertahan batas penyerapan':'Sudah di batas minimal'};
+                let sD=0,fB=cB,iB=cB;
+                while(fB>aM&&sD<15){
+                    let dA=fB*0.2;if(dA<1)break;
+                    let nB=Math.max(fB-dA,aM);
+                    try{
+                        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+                        fB=Math.round(nB);sD++;
+                        if(fB<=aM)break;
+                        await new Promise(res=>setTimeout(res,5000));
+                    }catch(apiErr){
+                        break;
+                    }
+                }
+                return{result:'Success',note:`Reset per 20% (${sD}x) -${formatIDR(iB-fB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB)};
+            }catch(x){return{result:'Failed',note:x.message};}
+        }
 
         async function runRuleManually(ruleId) {
             Swal.fire({
@@ -893,6 +1056,10 @@
             const nowISO = now.toISOString();
             let globalUpdates = false;
             let stats = { executed: 0, checked: 0, failed: 0 };
+            
+            // GLOBAL TRACKERS FIX
+            let processedBudgetIds = new Set();
+            let processedStatusIds = new Set();
 
             for (const rule of activeRules) {
                 if (!rule.state) rule.state = {};
@@ -920,11 +1087,17 @@
                     let checkedCount = 0;
                     let execValBefore = '';
                     let execValAfter = '';
-                    let processedBudgetIds = new Set();
 
                     for (const entity of targetEntities) {
                         const statusCheck = validateEntityStatusForAction(rule.action, entity.status);
                         if (!statusCheck.isValid) { checkedCount++; continue; }
+
+                        // STATUS TRACKER VALIDATION
+                        const isStatusAction = ['turn_off', 'turn_on'].includes(rule.action);
+                        if (isStatusAction && processedStatusIds.has(entity.id)) {
+                            checkedCount++;
+                            continue;
+                        }
 
                         const isBudgetAction = ['increase_budget', 'decrease_budget', 'reset_budget'].includes(rule.action);
                         if (isBudgetAction && processedBudgetIds.has(entity.budget_source_id)) {
@@ -935,6 +1108,7 @@
                         const condResult = evaluateRuleConditions(rule, entity);
                         if (condResult.met) {
                             if (isBudgetAction) processedBudgetIds.add(entity.budget_source_id);
+                            if (isStatusAction) processedStatusIds.add(entity.id);
 
                             let execRes = null;
                             if (rule.action === 'turn_off') execRes = await executeRuleActionStatus(rule, entity, 'PAUSED', ruleAccount.accessToken, CONFIG.apiVersion);
