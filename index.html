@@ -386,7 +386,7 @@
 
         // VALIDASI STATUS UNTUK SETIAP AKSI
         function validateEntityStatusForAction(act,s){
-            const isA=s==='ACTIVE',isP=s==='PAUSED';
+            const isA=(s==='ACTIVE' || s==='DELIVERING'), isP=(s==='PAUSED' || s==='ADSET_PAUSED' || s==='CAMPAIGN_PAUSED');
             if(['turn_off','increase_budget','decrease_budget'].includes(act)&&!isA)return{isValid:false,reason:"Hanya untuk status Aktif"};
             if(['turn_on','reset_budget'].includes(act)&&!isP)return{isValid:false,reason:"Hanya untuk status Paused"};
             return{isValid:true,reason:""};
@@ -397,8 +397,8 @@
             if (!rule.conditions || !rule.conditions.length) return { met: false, r: "Kosong" };
             
             // ANTI PREMATURE KILL (Minimal spend Rp 1.000)
-            if (rule.action === 'turn_off' && safeNumber(ent.spend) < 1000) {
-                return { met: false, r: "Spend < 1.000 (Prematur)" };
+            if (rule.action === 'turn_off' && safeNumber(ent.spend) <= 1000) {
+                return { met: false, r: "Spend <= 1.000 (Prematur)" };
             }
 
             const cmap = { 'cost_per_result': 'results', 'cost_purchase': 'purchases', 'cost_lead': 'leads', 'cost_add_to_cart': 'add_to_cart', 'cost_initiate_checkout': 'initiate_checkout', 'cost_conversations': 'conversations' };
@@ -1006,7 +1006,7 @@
                         fB=Math.round(nB);sD++;
                         if(fB<=tB)break;
                         await new Promise(res=>setTimeout(res,5000));
-                    } catch(e) {
+                    } catch(apiErr) {
                         break;
                     }
                 }
