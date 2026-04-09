@@ -384,41 +384,60 @@
             return (eJ.data||[]).map(e=>normalizeEntityData(e,iMap[e.id],tgt,pConf,'act_'+c.adAccountId.replace(/^act_/i,'')));
         }
 
-        // VALIDASI STATUS UNTUK SETIAP AKSI
+        // VALIDASI STATUS EKSKLUSIF
         function validateEntityStatusForAction(act,s){
-            const isA=(s==='ACTIVE' || s==='DELIVERING'), isP=(s==='PAUSED' || s==='ADSET_PAUSED' || s==='CAMPAIGN_PAUSED');
+            const isA=(s==='ACTIVE' || s==='DELIVERING');
+            const isP=(s==='PAUSED' || s==='ADSET_PAUSED' || s==='CAMPAIGN_PAUSED');
             if(['turn_off','increase_budget','decrease_budget'].includes(act)&&!isA)return{isValid:false,reason:"Hanya untuk status Aktif"};
             if(['turn_on','reset_budget'].includes(act)&&!isP)return{isValid:false,reason:"Hanya untuk status Paused"};
             return{isValid:true,reason:""};
         }
 
-        // CEGAH PEMATIAN TERLALU CEPAT
+        // KONDISI & METRIK PERTUMBUHAN
         function evaluateRuleConditions(rule, ent) {
             if (!rule.conditions || !rule.conditions.length) return { met: false, r: "Kosong" };
             
-            // ANTI PREMATURE KILL (Minimal spend Rp 1.000)
-            if (rule.action === 'turn_off' && safeNumber(ent.spend) <= 1000) {
-                return { met: false, r: "Spend <= 1.000 (Prematur)" };
+            // PREMATURE KILL PROTECTION
+            if (rule.action === 'turn_off' && safeNumber(ent.spend) <= 5000) {
+                return { met: false, r: "Spend <= 5000 (Prematur)" };
             }
 
             const cmap = { 'cost_per_result': 'results', 'cost_purchase': 'purchases', 'cost_lead': 'leads', 'cost_add_to_cart': 'add_to_cart', 'cost_initiate_checkout': 'initiate_checkout', 'cost_conversations': 'conversations' };
+            
             for (const c of rule.conditions) {
                 if (c.type === 'FILTER') {
                     const v = (ent.name || '').toLowerCase(), t = (c.v || '').toLowerCase(), m = c.op === 'contains' ? v.includes(t) : !v.includes(t);
                     if (!m) return { met: false, r: 'Filter' };
-                } else if (c.type === 'STATIC') {
+                } else if (c.type === 'STATIC' || c.type === 'GROWTH') {
                     let aV = parseFloat(ent[c.m]) || 0;
                     let tV = parseRawValue(c.v, c.m);
+                    
                     if (cmap[c.m]) {
                         const cv = safeNumber(ent[cmap[c.m]]), sp = safeNumber(ent.spend);
                         if (cv === 0) { aV = (c.op === 'greater' || c.op === 'greater_equal') ? sp : Infinity; }
                     }
+                    
                     if (rule.enableLooseCpr === true && rule.looseCpr && cmap[c.m]) {
                         const ll = parseFloat(String(rule.looseCpr).replace(/[^0-9]/g, '')) || 0;
                         if (ll > 0 && safeNumber(ent[cmap[c.m]]) > 5) tV = ll;
                     }
+
+                    // GROWTH LOGIC
+                    if (c.type === 'GROWTH') {
+                        let st = rule.state && rule.state[ent.id] ? rule.state[ent.id] : {};
+                        let lV = st[`last_val_${c.m}`];
+                        if (lV === undefined) {
+                            return { met: false, r: 'Menunggu Baseline Pertumbuhan' };
+                        }
+                        aV = aV - lV; 
+                        
+                        if (!rule.state) rule.state = {};
+                        if (!rule.state[ent.id]) rule.state[ent.id] = {};
+                        rule.state[ent.id][`next_val_${c.m}`] = parseFloat(ent[c.m]) || 0;
+                    }
+
                     let m = c.op === 'greater' ? aV > tV : c.op === 'smaller' ? aV < tV : c.op === 'equal' ? aV === tV : c.op === 'greater_equal' ? aV >= tV : aV <= tV;
-                    if (!m) return { met: false, r: 'Syarat' };
+                    if (!m) return { met: false, r: c.type === 'GROWTH' ? 'Syarat Pertumbuhan' : 'Syarat' };
                 }
             }
             return { met: true, r: "OK" };
@@ -1105,6 +1124,25 @@
                             continue;
                         }
 
+                        // INIT GROWTH BASELINE
+                        let needsSaveBaseline = false;
+                        if (!rule.state) rule.state = {};
+                        if (!rule.state[entity.id]) rule.state[entity.id] = {};
+                        
+                        for (const c of rule.conditions) {
+                            if (c.type === 'GROWTH') {
+                                if (rule.state[entity.id][`last_val_${c.m}`] === undefined) {
+                                    rule.state[entity.id][`last_val_${c.m}`] = parseFloat(entity[c.m]) || 0;
+                                    needsSaveBaseline = true;
+                                }
+                            }
+                        }
+
+                        if (needsSaveBaseline) {
+                            checkedCount++;
+                            continue; // Skip execution to wait for next cycle to get delta
+                        }
+
                         const condResult = evaluateRuleConditions(rule, entity);
                         if (condResult.met) {
                             if (isBudgetAction) processedBudgetIds.add(entity.budget_source_id);
@@ -1144,6 +1182,14 @@
                                     failedEntities.push(entity.name);
                                 }
                             }
+                            
+                            // Update next val for GROWTH conditions
+                            for (const c of rule.conditions) {
+                                if (c.type === 'GROWTH' && rule.state[entity.id][`next_val_${c.m}`] !== undefined) {
+                                    rule.state[entity.id][`last_val_${c.m}`] = rule.state[entity.id][`next_val_${c.m}`];
+                                }
+                            }
+
                         }else{
                             checkedCount++;
                         }
