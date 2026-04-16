@@ -227,10 +227,7 @@
     }
     function finalizeLogin(){localStorage.setItem('ads_current_user',JSON.stringify(currentUser));accounts=currentUser.accounts||[];currentAccountId=accounts.length>0?(accounts.some(a=>a.id===localStorage.getItem('ads_active_id'))?localStorage.getItem('ads_active_id'):accounts[0].id):'';if(currentAccountId)localStorage.setItem('ads_active_id',currentAccountId);else localStorage.removeItem('ads_active_id');automatedRulesHistory=safeJSONParse('ads_rules_history_'+currentUser.email,[]);if($id('profileEmail'))$id('profileEmail').innerText=currentUser.email;if($id('profileAvatar'))$id('profileAvatar').innerText=currentUser.email.charAt(0).toUpperCase();$id('loginScreen')?.classList.add('hidden');$id('appWrapper')?.classList.remove('hidden');Swal.fire({icon:'success',title:'Berhasil Masuk',timer:1500,showConfirmButton:false});initApp();}
     function syncUserDB(){if(!currentUser)return;currentUser.accounts=accounts;localStorage.setItem('ads_current_user',JSON.stringify(currentUser));localStorage.setItem('ads_user_data_'+currentUser.email,JSON.stringify({accounts,rules:currentUser.rules}));}
-    async function syncRulesToWorker(){
-      if(!WORKER_URL||!currentUser)return;const bdg=$id('cloudSyncBadge');if(bdg)bdg.innerHTML='<i class="fa-solid fa-arrows-rotate fa-spin"></i> Menyinkronkan...';
-      try{const rs=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sync_rules',email:currentUser.email,gasUrl:APP_CONFIG.gasUrl,accounts:accounts.map(a=>({id:a.id,adAccountId:a.adAccountId,accessToken:a.accessToken})),rules:currentUser.rules})});if(!rs.ok)throw new Error('Gagal Worker');if(bdg){bdg.className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-200 dark:border-emerald-800/50 transition-all whitespace-nowrap";bdg.innerHTML='<i class="fa-solid fa-cloud-check"></i> Cloud 24/7 Aktif';}}catch(er){if(bdg){bdg.className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold rounded-lg border border-red-200 dark:border-red-800/50 transition-all whitespace-nowrap";bdg.innerHTML='<i class="fa-solid fa-cloud-xmark text-red-500"></i> Cloud Disconnected';}}
-    }
+    async function syncRulesToWorker(retry=3){if(!WORKER_URL||!currentUser)return;const bdg=$id('cloudSyncBadge');if(bdg)bdg.innerHTML='<i class="fa-solid fa-arrows-rotate fa-spin"></i> Menyinkronkan...';try{const rs=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sync_rules',email:currentUser.email,gasUrl:APP_CONFIG.gasUrl,accounts:accounts.map(a=>({id:a.id,adAccountId:a.adAccountId,accessToken:a.accessToken})),rules:currentUser.rules})});if(!rs.ok)throw new Error('Gagal Worker');if(bdg){bdg.className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-200 dark:border-emerald-800/50 transition-all whitespace-nowrap";bdg.innerHTML='<i class="fa-solid fa-cloud-check"></i> Cloud 24/7 Aktif';}}catch(er){if(retry>0){setTimeout(()=>syncRulesToWorker(retry-1),2000);}else if(bdg){bdg.className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-bold rounded-lg border border-red-200 dark:border-red-800/50 transition-all whitespace-nowrap";bdg.innerHTML='<i class="fa-solid fa-cloud-xmark text-red-500"></i> Cloud Disconnected';}}}
     function logout(){Swal.fire({title:'Keluar?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'Ya, Keluar'}).then(r=>{if(r.isConfirmed){localStorage.removeItem('ads_current_user');currentUser=null;accounts=[];currentAccountId='';automatedRulesHistory=[];$id('appWrapper')?.classList.add('hidden');$id('loginScreen')?.classList.remove('hidden');$id('authEmail').value='';$id('authPassword').value='';Swal.fire({icon:'success',title:'Berhasil Keluar',timer:1500,showConfirmButton:false});}});}
     function getRuleConditionsMenu(){const s=[],g=[];Object.keys(METRIC_REGISTRY).forEach(k=>{const m=METRIC_REGISTRY[k];s.push({label:m.label,type:'STATIC',key:k});if(m.can_grow)g.push({label:m.label+' (Pertumbuhan)',type:'GROWTH',key:k});});return{"Filter Nama":Object.keys(TEXT_METRICS).map(k=>({label:TEXT_METRICS[k].label,type:'FILTER',key:k})),"Kondisi Nilai":s,"Metrik Pertumbuhan":g};}
     function calculateSmartResult(m,c){if(m.results!==undefined&&m.results!==null)return safeNumber(m.results);let t=[];const o=c?.objective,p=c?.optimization_goal;if(p){if(p==='LANDING_PAGE_VIEWS')t.push('landing_page_view');else if(p==='LINK_CLICKS')t.push('link_click');else if(p==='THRUPLAY')t.push('video_view');else if(p==='REACH')t.push('impressions');else if(p==='IMPRESSIONS')t.push('impressions');else if(p==='POST_ENGAGEMENT')t.push('post_engagement');}if(t.length===0&&o){if(OBJECTIVE_EVENT_MAP[o])t=OBJECTIVE_EVENT_MAP[o];else if(['CONVERSIONS','OUTCOME_SALES'].includes(o))t=['purchase','omni_purchase'];}if(m.actions&&t.length>0){for(const e of t){const v=getActionValue(m.actions,e);if(v>0)return v;}}return 0;}
@@ -241,7 +238,7 @@
     function validateEntityStatusForAction(act,s){const iA=(s==='ACTIVE'||s==='DELIVERING'),iP=(s==='PAUSED'||s==='ADSET_PAUSED'||s==='CAMPAIGN_PAUSED');if(['turn_off','increase_budget','decrease_budget','reset_budget'].includes(act)&&!iA)return{isValid:false,reason:"Hanya untuk status Aktif"};if(['turn_on'].includes(act)&&!iP)return{isValid:false,reason:"Hanya untuk status Paused"};return{isValid:true,reason:""};}
 
     let lastAutomatedRun=Date.now();
-    function initApp(){buildScheduleDays();try{const sF=localStorage.getItem('ads_status_filter');if(sF){currentStatusFilter=sF;if($id('campaignStatusFilter'))$id('campaignStatusFilter').value=sF;}}catch(e){localStorage.clear();}if($id('currentDateDisplay'))$id('currentDateDisplay').innerText=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});initTheme();updateHeaderAccountLabel();refreshData();setTimeout(()=>syncRulesToWorker(),2000);const wC=`let timer;self.onmessage=function(e){if(e.data.action==='start'){timer=setInterval(()=>self.postMessage('tick'),e.data.interval);}else if(e.data.action==='stop'){clearInterval(timer);}};`,b=new Blob([wC],{type:'application/javascript'}),tW=new Worker(URL.createObjectURL(b));tW.onmessage=async function(e){if(e.data==='tick'){await fetchLogsFromDB();lastAutomatedRun=Date.now();}};tW.postMessage({action:'start',interval:ENGINE_CONFIG.interval});document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&Date.now()-lastAutomatedRun>=ENGINE_CONFIG.interval){await fetchLogsFromDB();lastAutomatedRun=Date.now();}});}
+    function initApp(){buildScheduleDays();try{const sF=localStorage.getItem('ads_status_filter');if(sF){currentStatusFilter=sF;if($id('campaignStatusFilter'))$id('campaignStatusFilter').value=sF;}}catch(e){localStorage.clear();}if($id('currentDateDisplay'))$id('currentDateDisplay').innerText=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});initTheme();updateHeaderAccountLabel();refreshData();setTimeout(()=>syncRulesToWorker(),2000);const wC=`let timer;self.onmessage=function(e){if(e.data.action==='start'){timer=setInterval(()=>self.postMessage('tick'),e.data.interval);}else if(e.data.action==='stop'){clearInterval(timer);}};`,b=new Blob([wC],{type:'application/javascript'}),tW=new Worker(URL.createObjectURL(b));tW.onmessage=async function(e){if(e.data==='tick'){await fetchLogsFromDB();await runAutomatedRules(null);lastAutomatedRun=Date.now();}};tW.postMessage({action:'start',interval:ENGINE_CONFIG.interval});document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&Date.now()-lastAutomatedRun>=ENGINE_CONFIG.interval){await fetchLogsFromDB();lastAutomatedRun=Date.now();}});}
     function initAuthSession(){currentUser=safeJSONParse('ads_current_user',null);if(currentUser){automatedRulesHistory=safeJSONParse('ads_rules_history_'+currentUser.email,[]);if($id('profileEmail'))$id('profileEmail').innerText=currentUser.email;if($id('profileAvatar'))$id('profileAvatar').innerText=currentUser.email.charAt(0).toUpperCase();accounts=currentUser.accounts||[];currentAccountId=localStorage.getItem('ads_active_id')||'';if(accounts.length>0&&!currentAccountId){currentAccountId=accounts[0].id;localStorage.setItem('ads_active_id',currentAccountId);}$id('loginScreen')?.classList.add('hidden');$id('appWrapper')?.classList.remove('hidden');initApp();}else{$id('loginScreen')?.classList.remove('hidden');$id('appWrapper')?.classList.add('hidden');}}
     function initTheme(){const s=localStorage.getItem('theme'),iD=s==='dark'||s===null;document.documentElement.classList.toggle('dark',iD);if(s===null)localStorage.setItem('theme','dark');updateThemeIcon(iD);}
     function toggleTheme(){const iD=document.documentElement.classList.toggle('dark');localStorage.setItem('theme',iD?'dark':'light');updateThemeIcon(iD);}
@@ -344,9 +341,8 @@
     async function executeRuleActionStatus(r,e,nS,t,v){try{await fetchMetaApi(`https://graph.facebook.com/${v}/${e.id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:nS,access_token:t})});return{result:'Success',valBefore:e.status,valAfter:nS};}catch(err){return{result:'Failed',note:err.message};}}
 
     function evaluateRuleConditions(r,e){
-      if(!r.conditions||!r.conditions.length)return{met:false,r:"Aturan Kosong"};
+      if(!r.conditions||!r.conditions.length)return{met:true,r:"OK"};
       const sp=safeNumber(e.spend),iN=['turn_off','decrease_budget','reset_budget'].includes(r.action),hS=r.conditions.some(c=>c.m==='spend'),hI=r.conditions.some(c=>['impressions','reach'].includes(c.m));
-      if(iN){if(sp<2000)return{met:false,r:"Spend < 2k (Prematur)"};if(!hS&&!hI&&sp<15000)return{met:false,r:"Spend < 15k (Traffic Guard)"};}
       const cM={'cost_per_result':'results','cost_purchase':'purchases','cost_lead':'leads','cost_add_to_cart':'add_to_cart','cost_initiate_checkout':'initiate_checkout','cost_conversations':'conversations','cpc_link':'link_clicks','cpm':'impressions'};
       for(const c of r.conditions){
         if(c.type==='FILTER'){const v=(e.name||'').toLowerCase(),t=(c.v||'').toLowerCase(),m=c.op==='contains'?v.includes(t):!v.includes(t);if(!m)return{met:false,r:`Filter '${c.v}' tak cocok`};}
@@ -367,40 +363,57 @@
         let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_val||cB,lR=st.last_results||0,cC=0,gC=r.conditions.find(c=>c.type==='GROWTH');
         if(gC)cC=safeNumber(e[gC.m]);else{let f=false;for(let c of r.conditions){if(c.m.includes('purchase')||c.m==='roas'){cC=safeNumber(e.purchases);f=true;break;}else if(c.m.includes('cart')){cC=safeNumber(e.add_to_cart);f=true;break;}else if(c.m.includes('lead')){cC=safeNumber(e.leads);f=true;break;}else if(c.m==='results'||c.m==='cost_per_result'){cC=safeNumber(e.results);f=true;break;}}if(!f)cC=Math.max(safeNumber(e.purchases),safeNumber(e.leads),safeNumber(e.add_to_cart));}
         let nC=lR>0?cC-lR:cC;if(gC){let tG=parseRawValue(gC.v,gC.m);if(nC<tG)return{result:'Skipped',note:`Konversi baru ${nC} (Target Grow: ${tG})`};}else{if(nC<2)return{result:'Skipped',note:`Konversi baru ${nC} (Min 2)`};}
-        let mx=bs*2;if(r.budgetLimit){const cM=parseFloat(String(r.budgetLimit).replace(/[^0-9]/g,''));if(cM>0)mx=cM;}
+        
+        let mx=bs*2; 
+        if(r.budgetLimit){const cM=parseFloat(String(r.budgetLimit).replace(/[^0-9]/g,''));if(cM>0)mx=cM;}
         if(cB>=mx)return{result:'MaxLimitReached',note:'Batas Scale Up tercapai'};
-        let tB=Math.min(bs*2,mx),sD=0,fB=cB,iB=cB,stepAmt=Math.max(1,iB*0.2);
-        while(fB<tB){let nB=Math.min(fB+stepAmt,tB);try{await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});fB=Math.round(nB);sD++;if(fB>=tB)break;await new Promise(res=>setTimeout(res,5000));}catch(err){break;}}
-        if(sD===0) throw new Error("Gagal mengeksekusi API Meta (Target tidak tercapai).");
-        return{result:'Success',note:`Naik 20% (${sD}x) +${formatIDR(fB-iB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB),baseline_val:bs,last_results:cC,step_count:(st.step_count||0)+sD};
+        
+        let stepAmt=Math.max(1,cB*0.2);
+        let nB=Math.min(cB+stepAmt,mx);
+        
+        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+        
+        return{result:'Success',note:`Naik 20% +${formatIDR(nB-cB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(nB),baseline_val:bs,last_results:cC,step_count:(st.step_count||0)+1};
       }catch(x){return{result:'Failed',note:x.message};}
     }
 
     async function executeDecreaseBudget(r,e,t,a){
       try{
-        let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,tB=cB/2,aM=ENGINE_CONFIG.metaMinBudget;
+        let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,tB=bs/2,aM=ENGINE_CONFIG.metaMinBudget;
         if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)aM=Math.max(aM,cM);}
+        
         let cS=safeNumber(e.spend);
-        let fl=Math.max(aM,cS);
-        if(tB<fl)tB=fl;
-        if(cB<=fl)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan berjalan':'Sudah di batas minimal konfigurasi'};
-        let sD=0,fB=cB,iB=cB,stepAmt=Math.max(1,iB*0.2);
-        while(fB>tB){let nB=Math.max(fB-stepAmt,tB);try{await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});fB=Math.round(nB);sD++;if(fB<=tB)break;await new Promise(res=>setTimeout(res,5000));}catch(err){break;}}
-        if(sD===0) throw new Error("Gagal mengeksekusi API Meta.");
-        return{result:'Success',note:`Turun 20% (${sD}x) -${formatIDR(iB-fB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB),baseline_dec_val:bs,step_dec_count:(st.step_dec_count||0)+sD};
+        let fl=Math.max(aM,cS,tB);
+        if(cB<=fl)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan berjalan':(cB<=tB?'Sudah di batas setengah (1/2)':'Sudah di batas minimal konfigurasi')};
+        
+        let stepAmt=Math.max(1,cB*0.2);
+        let nB=Math.max(cB-stepAmt,fl);
+        
+        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+        
+        return{result:'Success',note:`Turun 20% -${formatIDR(cB-nB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(nB),baseline_dec_val:bs,step_dec_count:(st.step_dec_count||0)+1};
       }catch(x){return{result:'Failed',note:x.message};}
     }
 
     async function executeResetBudget(r,e,t,a){
       try{
         let cB=e.budget,mL=ENGINE_CONFIG.metaMinBudget;
-        if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)mL=Math.max(mL,cM);}
-        let aM=mL;
-        if(cB<=aM)return{result:'MinLimitReached',note:'Sudah di batas minimal konfigurasi'};
-        let sD=0,fB=cB,iB=cB,stepAmt=Math.max(1,iB*0.2);
-        while(fB>aM){let nB=Math.max(fB-stepAmt,aM);try{await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});fB=Math.round(nB);sD++;if(fB<=aM)break;await new Promise(res=>setTimeout(res,5000));}catch(err){break;}}
-        if(sD===0) throw new Error("Gagal mengeksekusi API Meta.");
-        return{result:'Success',note:`Reset 20% (${sD}x) -${formatIDR(iB-fB)}`,valBefore:formatIDR(iB),valAfter:formatIDR(fB)};
+        let explicitMin = false;
+        if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0){mL=Math.max(mL,cM); explicitMin=true;}}
+        
+        let st=r.state[e.id]||{};
+        let aM = explicitMin ? mL : (st.baseline_val || mL);
+        let cS=safeNumber(e.spend);
+        let fl=Math.max(aM,cS);
+        
+        if(cB<=fl)return{result:'MinLimitReached',note:'Sudah di batas minimal/baseline'};
+        
+        let stepAmt=Math.max(1,cB*0.2);
+        let nB=Math.max(cB-stepAmt,fl);
+        
+        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+        
+        return{result:'Success',note:`Reset 20% -${formatIDR(cB-nB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(nB)};
       }catch(x){return{result:'Failed',note:x.message};}
     }
 
@@ -438,8 +451,8 @@
               if(xR){
                 if(xR.result==='Success'){
                   cE.push({name:e.name,valBefore:xR.valBefore,valAfter:xR.valAfter,reason:xR.note});eVB=xR.valBefore;eVA=xR.valAfter;
-                  if(r.action==='increase_budget'){r.state[e.id]={...r.state[e.id],baseline_val:xR.baseline_val||e.budget,step_count:(r.state[e.id]?.step_count||0)+xR.step_count,last_results:xR.last_results!==undefined?xR.last_results:e.results,last_increase:nI};}
-                  else if(r.action==='decrease_budget'){r.state[e.id]={...r.state[e.id],baseline_dec_val:xR.baseline_dec_val||e.budget,step_dec_count:(r.state[e.id]?.step_dec_count||0)+xR.step_dec_count,last_decrease:nI};}
+                  if(r.action==='increase_budget'){r.state[e.id]={...r.state[e.id],baseline_val:xR.baseline_val||e.budget,step_count:(r.state[e.id]?.step_count||0)+1,last_results:xR.last_results!==undefined?xR.last_results:e.results,last_increase:nI};}
+                  else if(r.action==='decrease_budget'){r.state[e.id]={...r.state[e.id],baseline_dec_val:xR.baseline_dec_val||e.budget,step_dec_count:(r.state[e.id]?.step_dec_count||0)+1,last_decrease:nI};}
                   else if(r.action==='reset_budget'){if(r.state[e.id]){r.state[e.id].step_count=0;r.state[e.id].last_results=0;r.state[e.id].step_dec_count=0;}}
                 }else if(['Skipped','MinLimitReached','MaxLimitReached'].includes(xR.result)){dE.push({name:e.name,reason:xR.note});}
                 else{eE.push({name:e.name,reason:xR.note||'Error eksekusi'});}
