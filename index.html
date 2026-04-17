@@ -235,7 +235,7 @@
     function normalizeEntityData(r,rI,t,pC,fA=''){const m=rI||{};let b=0,bT='daily',bI=r.id,bL=t==='campaign'?'Kampanye':t==='adset'?'Set Iklan':'Iklan';if(r.daily_budget||r.lifetime_budget){b=safeNumber(r.daily_budget||r.lifetime_budget);bT=r.daily_budget?'daily':'lifetime';}else if(r.adset&&(r.adset.daily_budget||r.adset.lifetime_budget)){b=safeNumber(r.adset.daily_budget||r.adset.lifetime_budget);bT=r.adset.daily_budget?'daily':'lifetime';bI=r.adset.id;bL='Set Iklan (Induk)';}else if(r.campaign&&(r.campaign.daily_budget||r.campaign.lifetime_budget)){b=safeNumber(r.campaign.daily_budget||r.campaign.lifetime_budget);bT=r.campaign.daily_budget?'daily':'lifetime';bI=r.campaign.id;bL='Kampanye (Induk)';}else if(pC&&pC.budget>0){b=pC.budget;bT=pC.budget_type;bI=pC.id;bL=pC.level+' (Induk)';}const o=r.objective||(r.campaign?.objective)||pC?.objective;const n={id:r.id,name:r.name||'',account_id:r.account_id||fA,status:r.status,effective_status:normalizeStatus(r.effective_status),budget:b,budget_type:bT,budget_source_id:bI,budget_source_level:bL,objective:o,config:{objective:o,optimization_goal:r.optimization_goal||pC?.optimization_goal,promoted_object:r.promoted_object||pC?.promoted_object}};if(t==='adset')n.campaign_id=r.campaign_id;if(t==='ad')n.adset_id=r.adset_id;n.spend=safeNumber(m.spend);n.impressions=safeNumber(m.impressions);n.reach=safeNumber(m.reach);n.clicks=safeNumber(m.clicks);n.link_clicks=safeNumber(m.inline_link_clicks);const a=m.actions||[],av=m.action_values||[];n.post_engagement=getActionValue(a,'post_engagement');n.landing_page_view=getActionValue(a,'landing_page_view');n.purchases=getActionValue(a,'purchase');n.purchase_value=getActionValue(av,'purchase');n.add_to_cart=getActionValue(a,'add_to_cart');n.initiate_checkout=getActionValue(a,'initiate_checkout');n.leads=getActionValue(a,'lead');n.conversations=getActionValue(a,'messaging_conversation_started_7d');n.results=calculateSmartResult(m,n.config)||0;n.cost_per_result=n.results>0?n.spend/n.results:0;n.cpm=n.impressions>0?(n.spend/n.impressions)*1000:0;n.ctr_link=n.impressions>0?(n.link_clicks/n.impressions)*100:0;n.ctr_all=n.impressions>0?(n.clicks/n.impressions)*100:0;n.cpc_link=n.link_clicks>0?n.spend/n.link_clicks:0;n.frequency=n.reach>0?n.impressions/n.reach:0;n.roas=n.spend>0?n.purchase_value/n.spend:0;n.cost_purchase=n.purchases>0?n.spend/n.purchases:0;n.cost_add_to_cart=n.add_to_cart>0?n.spend/n.add_to_cart:0;n.cost_initiate_checkout=n.initiate_checkout>0?n.spend/n.initiate_checkout:0;n.cost_lead=n.leads>0?n.spend/n.leads:0;n.cost_conversations=n.conversations>0?n.spend/n.conversations:0;return n;}
     async function fetchMetaApi(url,opt={},ret=3,bak=1000){try{const rs=await fetch(url,opt),uh=rs.headers.get('x-business-use-case-usage');if(uh){try{const ud=JSON.parse(uh),au=ud[Object.keys(ud)[0]];if(au&&au.length>0){const mu=Math.max(au[0].total_cputime||0,au[0].total_time||0,au[0].call_count||0);if(mu>85)await new Promise(r=>setTimeout(r,5000));}}catch(e){}}const dt=await rs.json();if(dt.error){const ec=dt.error.code;if(ec===190)throw new Error("TOKEN_INVALID");if([4,17,32,2,1].includes(ec)&&ret>0){await new Promise(r=>setTimeout(r,bak));return fetchMetaApi(url,opt,ret-1,bak*2);}throw new Error(dt.error.message);}return dt;}catch(e){throw e;}}
     async function fetchEngineData(tgt,dP,ovConf,pId,pConf){const c=ovConf||CONFIG;if(!c.adAccountId||!c.accessToken)throw new Error("No Account Configuration provided");const rNode=pId||'act_'+c.adAccountId.replace(/^act_/i,''),fSet=new Set([`${tgt}_id`,'results']);Object.values(METRIC_REGISTRY).forEach(d=>{if(d.api_field!=='daily_budget')fSet.add(d.api_field);});let dParam=dP?.preset?`date_preset=${dP.preset}`:customDateRange.start?`time_range=${JSON.stringify({since:customDateRange.start.toISOString().split('T')[0],until:(customDateRange.end||customDateRange.start).toISOString().split('T')[0]})}`:`date_preset=${c.datePreset||'last_7d'}`,eFlds='id,name,account_id,status,effective_status,daily_budget,lifetime_budget,objective,optimization_goal,promoted_object,billing_event';if(tgt==='adset')eFlds+=',campaign_id,campaign{objective,daily_budget,lifetime_budget}';if(tgt==='ad')eFlds+=',adset_id,campaign_id,campaign{objective,daily_budget,lifetime_budget},adset{daily_budget,lifetime_budget}';const eJ=await fetchMetaApi(`https://graph.facebook.com/${c.apiVersion}/${rNode}/${tgt}s?fields=${eFlds}&limit=500&access_token=${c.accessToken}`),iJ=await fetchMetaApi(`https://graph.facebook.com/${c.apiVersion}/${rNode}/insights?level=${tgt}&${dParam}&fields=${Array.from(fSet).join(',')}&limit=500&access_token=${c.accessToken}`),iMap={};(iJ.data||[]).forEach(i=>iMap[i[`${tgt}_id`]]=i);return(eJ.data||[]).map(e=>normalizeEntityData(e,iMap[e.id],tgt,pConf,'act_'+c.adAccountId.replace(/^act_/i,'')));}
-    function validateEntityStatusForAction(act,s){const iA=(s==='ACTIVE'||s==='DELIVERING'),iP=(s==='PAUSED'||s==='ADSET_PAUSED'||s==='CAMPAIGN_PAUSED');if(['turn_off','increase_budget','decrease_budget','reset_budget'].includes(act)&&!iA)return{isValid:false,reason:"Hanya untuk status Aktif"};if(['turn_on'].includes(act)&&!iP)return{isValid:false,reason:"Hanya untuk status Paused"};return{isValid:true,reason:""};}
+    function validateEntityStatusForAction(act,s){const iA=(s==='ACTIVE'||s==='DELIVERING'),iP=(s==='PAUSED'||s==='ADSET_PAUSED'||s==='CAMPAIGN_PAUSED');if(['turn_off','increase_budget','decrease_budget'].includes(act)&&!iA)return{isValid:false,reason:"Hanya untuk status Aktif"};if(['turn_on','reset_budget'].includes(act)&&!iP)return{isValid:false,reason:"Hanya untuk status Paused"};return{isValid:true,reason:""};}
 
     let lastAutomatedRun=Date.now();
     function initApp(){buildScheduleDays();try{const sF=localStorage.getItem('ads_status_filter');if(sF){currentStatusFilter=sF;if($id('campaignStatusFilter'))$id('campaignStatusFilter').value=sF;}}catch(e){localStorage.clear();}if($id('currentDateDisplay'))$id('currentDateDisplay').innerText=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});initTheme();updateHeaderAccountLabel();refreshData();setTimeout(()=>syncRulesToWorker(),2000);const wC=`let timer;self.onmessage=function(e){if(e.data.action==='start'){timer=setInterval(()=>self.postMessage('tick'),e.data.interval);}else if(e.data.action==='stop'){clearInterval(timer);}};`,b=new Blob([wC],{type:'application/javascript'}),tW=new Worker(URL.createObjectURL(b));tW.onmessage=async function(e){if(e.data==='tick'){await fetchLogsFromDB();await runAutomatedRules(null);lastAutomatedRun=Date.now();}};tW.postMessage({action:'start',interval:ENGINE_CONFIG.interval});document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&Date.now()-lastAutomatedRun>=ENGINE_CONFIG.interval){await fetchLogsFromDB();lastAutomatedRun=Date.now();}});}
@@ -358,15 +358,17 @@
       }return{met:true,r:"OK"};
     }
 
+    function validateEntityStatusForAction(act,s){const iA=(s==='ACTIVE'||s==='DELIVERING'),iP=(s==='PAUSED'||s==='ADSET_PAUSED'||s==='CAMPAIGN_PAUSED');if(['turn_off','increase_budget','decrease_budget'].includes(act)&&!iA)return{isValid:false,reason:"Hanya untuk status Aktif"};if(['turn_on','reset_budget'].includes(act)&&!iP)return{isValid:false,reason:"Hanya untuk status Paused"};return{isValid:true,reason:""};}
+
     async function executeIncreaseBudget(r,e,t,a){
       try{
         let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_val||cB,lR=st.last_results||0,cC=0,gC=r.conditions.find(c=>c.type==='GROWTH');
         if(gC)cC=safeNumber(e[gC.m]);else{let f=false;for(let c of r.conditions){if(c.m.includes('purchase')||c.m==='roas'){cC=safeNumber(e.purchases);f=true;break;}else if(c.m.includes('cart')){cC=safeNumber(e.add_to_cart);f=true;break;}else if(c.m.includes('lead')){cC=safeNumber(e.leads);f=true;break;}else if(c.m==='results'||c.m==='cost_per_result'){cC=safeNumber(e.results);f=true;break;}}if(!f)cC=Math.max(safeNumber(e.purchases),safeNumber(e.leads),safeNumber(e.add_to_cart));}
         let nC=lR>0?cC-lR:cC;if(gC){let tG=parseRawValue(gC.v,gC.m);if(nC<tG)return{result:'Skipped',note:`Konversi baru ${nC} (Target Grow: ${tG})`};}else{if(nC<2)return{result:'Skipped',note:`Konversi baru ${nC} (Min 2)`};}
         
-        let mx=bs*2; 
+        let mx=Infinity; 
         if(r.budgetLimit){const cM=parseFloat(String(r.budgetLimit).replace(/[^0-9]/g,''));if(cM>0)mx=cM;}
-        if(cB>=mx)return{result:'MaxLimitReached',note:'Batas Scale Up tercapai'};
+        if(cB>=mx)return{result:'MaxLimitReached',note:'Batas Scale Up maksimal tercapai'};
         
         let stepAmt=Math.max(1,cB*0.2);
         let nB=Math.min(cB+stepAmt,mx);
@@ -379,12 +381,12 @@
 
     async function executeDecreaseBudget(r,e,t,a){
       try{
-        let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,tB=bs/2,aM=ENGINE_CONFIG.metaMinBudget;
+        let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,aM=ENGINE_CONFIG.metaMinBudget;
         if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)aM=Math.max(aM,cM);}
         
         let cS=safeNumber(e.spend);
-        let fl=Math.max(aM,cS,tB);
-        if(cB<=fl)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan berjalan':(cB<=tB?'Sudah di batas setengah (1/2)':'Sudah di batas minimal konfigurasi')};
+        let fl=Math.max(aM,cS);
+        if(cB<=fl)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan berjalan':'Sudah di batas minimal konfigurasi'};
         
         let stepAmt=Math.max(1,cB*0.2);
         let nB=Math.max(cB-stepAmt,fl);
@@ -398,12 +400,15 @@
     async function executeResetBudget(r,e,t,a){
       try{
         let cB=e.budget,mL=ENGINE_CONFIG.metaMinBudget;
-        if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)mL=Math.max(mL,cM);}
-        let aM=mL; 
+        let explicitMin = false;
+        if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0){mL=Math.max(mL,cM); explicitMin=true;}}
+        
+        let st=r.state[e.id]||{};
+        let aM = explicitMin ? mL : (st.baseline_val || mL);
         let cS=safeNumber(e.spend);
         let fl=Math.max(aM,cS);
         
-        if(cB<=fl)return{result:'MinLimitReached',note:'Sudah di batas minimal konfigurasi'};
+        if(cB<=fl)return{result:'MinLimitReached',note:'Sudah di batas minimal/baseline'};
         
         let stepAmt=Math.max(1,cB*0.2);
         let nB=Math.max(cB-stepAmt,fl);
