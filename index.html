@@ -362,60 +362,89 @@
 
     async function executeIncreaseBudget(r,e,t,a){
       try{
-        let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_val||cB,lR=st.last_results||0,cC=0,gC=r.conditions.find(c=>c.type==='GROWTH');
-        if(gC)cC=safeNumber(e[gC.m]);else{let f=false;for(let c of r.conditions){if(c.m.includes('purchase')||c.m==='roas'){cC=safeNumber(e.purchases);f=true;break;}else if(c.m.includes('cart')){cC=safeNumber(e.add_to_cart);f=true;break;}else if(c.m.includes('lead')){cC=safeNumber(e.leads);f=true;break;}else if(c.m==='results'||c.m==='cost_per_result'){cC=safeNumber(e.results);f=true;break;}}if(!f)cC=Math.max(safeNumber(e.purchases),safeNumber(e.leads),safeNumber(e.add_to_cart));}
+        let cB=e.budget,st=r.state[e.id]||{},lR=st.last_results||0,cC=0,gC=r.conditions&&r.conditions.find(c=>c.type==='GROWTH');
+        if(gC)cC=safeNumber(e[gC.m]);else{let f=false;if(r.conditions){for(let c of r.conditions){if(c.m.includes('purchase')||c.m==='roas'){cC=safeNumber(e.purchases);f=true;break;}else if(c.m.includes('cart')){cC=safeNumber(e.add_to_cart);f=true;break;}else if(c.m.includes('lead')){cC=safeNumber(e.leads);f=true;break;}else if(c.m==='results'||c.m==='cost_per_result'){cC=safeNumber(e.results);f=true;break;}}}if(!f)cC=Math.max(safeNumber(e.purchases),safeNumber(e.leads),safeNumber(e.add_to_cart));}
         let nC=lR>0?cC-lR:cC;if(gC){let tG=parseRawValue(gC.v,gC.m);if(nC<tG)return{result:'Skipped',note:`Konversi baru ${nC} (Target Grow: ${tG})`};}else{if(nC<2)return{result:'Skipped',note:`Konversi baru ${nC} (Min 2)`};}
         
         let mx=Infinity; 
         if(r.budgetLimit){const cM=parseFloat(String(r.budgetLimit).replace(/[^0-9]/g,''));if(cM>0)mx=cM;}
-        if(cB>=mx)return{result:'MaxLimitReached',note:'Batas Scale Up maksimal tercapai'};
         
-        let stepAmt=Math.max(1,cB*0.2);
-        let nB=Math.min(cB+stepAmt,mx);
+        let tB = Math.min(cB * 2, mx);
+        if(cB >= tB)return{result:'MaxLimitReached',note:'Batas Scale Up tercapai'};
         
-        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
-        
-        return{result:'Success',note:`Naik 20% +${formatIDR(nB-cB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(nB),baseline_val:bs,last_results:cC,step_count:(st.step_count||0)+1};
+        let sD=0, fB=cB;
+        while(fB < tB){
+            let stepAmt=Math.max(1,fB*0.2);
+            let nB=Math.min(fB+stepAmt,tB);
+            try {
+                await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+                fB = Math.round(nB);
+                sD++;
+                if(fB >= tB) break;
+                await new Promise(res=>setTimeout(res, 5000));
+            } catch(err) {
+                break;
+            }
+        }
+        if(sD===0) throw new Error("Gagal mengeksekusi API Meta.");
+        return{result:'Success',note:`Naik bertahap 20% (${sD}x) +${formatIDR(fB-cB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(fB),last_results:cC,step_count:(st.step_count||0)+sD};
       }catch(x){return{result:'Failed',note:x.message};}
     }
 
     async function executeDecreaseBudget(r,e,t,a){
       try{
-        let cB=e.budget,st=r.state[e.id]||{},bs=st.baseline_dec_val||cB,aM=ENGINE_CONFIG.metaMinBudget;
+        let cB=e.budget,st=r.state[e.id]||{},aM=ENGINE_CONFIG.metaMinBudget;
         if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)aM=Math.max(aM,cM);}
         
         let cS=safeNumber(e.spend);
-        let fl=Math.max(aM,cS);
-        if(cB<=fl)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan berjalan':'Sudah di batas minimal konfigurasi'};
+        let fl=Math.max(aM,cS,cB/2);
+        if(cB<=fl)return{result:'MinLimitReached',note:cB<=cS?'Tertahan batas penyerapan berjalan':(cB<=(cB/2)?'Sudah di batas setengah (1/2)':'Sudah di batas minimal konfigurasi')};
         
-        let stepAmt=Math.max(1,cB*0.2);
-        let nB=Math.max(cB-stepAmt,fl);
-        
-        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
-        
-        return{result:'Success',note:`Turun 20% -${formatIDR(cB-nB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(nB),baseline_dec_val:bs,step_dec_count:(st.step_dec_count||0)+1};
+        let sD=0, fB=cB;
+        while(fB > fl){
+            let stepAmt=Math.max(1,fB*0.2);
+            let nB=Math.max(fB-stepAmt,fl);
+            try {
+                await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+                fB = Math.round(nB);
+                sD++;
+                if(fB <= fl) break;
+                await new Promise(res=>setTimeout(res, 5000));
+            } catch(err) {
+                break;
+            }
+        }
+        if(sD===0) throw new Error("Gagal mengeksekusi API Meta.");
+        return{result:'Success',note:`Turun bertahap 20% (${sD}x) -${formatIDR(cB-fB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(fB),step_dec_count:(st.step_dec_count||0)+sD};
       }catch(x){return{result:'Failed',note:x.message};}
     }
 
     async function executeResetBudget(r,e,t,a){
       try{
-        let cB=e.budget,mL=ENGINE_CONFIG.metaMinBudget;
-        let explicitMin = false;
-        if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0){mL=Math.max(mL,cM); explicitMin=true;}}
+        let cB=e.budget,aM=ENGINE_CONFIG.metaMinBudget;
+        if(r.minBudgetLimit){const cM=parseFloat(String(r.minBudgetLimit).replace(/[^0-9]/g,''));if(cM>0)aM=Math.max(aM,cM);}
         
-        let st=r.state[e.id]||{};
-        let aM = explicitMin ? mL : (st.baseline_val || mL);
         let cS=safeNumber(e.spend);
         let fl=Math.max(aM,cS);
         
-        if(cB<=fl)return{result:'MinLimitReached',note:'Sudah di batas minimal/baseline'};
+        if(cB<=fl)return{result:'MinLimitReached',note:'Sudah di batas minimal konfigurasi / penyerapan'};
         
-        let stepAmt=Math.max(1,cB*0.2);
-        let nB=Math.max(cB-stepAmt,fl);
-        
-        await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
-        
-        return{result:'Success',note:`Reset 20% -${formatIDR(cB-nB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(nB)};
+        let sD=0, fB=cB;
+        while(fB > fl){
+            let stepAmt=Math.max(1,fB*0.2);
+            let nB=Math.max(fB-stepAmt,fl);
+            try {
+                await fetchMetaApi(`https://graph.facebook.com/${a}/${e.budget_source_id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[e.budget_type==='lifetime'?'lifetime_budget':'daily_budget']:Math.round(nB),access_token:t})});
+                fB = Math.round(nB);
+                sD++;
+                if(fB <= fl) break;
+                await new Promise(res=>setTimeout(res, 5000));
+            } catch(err) {
+                break;
+            }
+        }
+        if(sD===0) throw new Error("Gagal mengeksekusi API Meta.");
+        return{result:'Success',note:`Reset bertahap 20% (${sD}x) -${formatIDR(cB-fB)}`,valBefore:formatIDR(cB),valAfter:formatIDR(fB)};
       }catch(x){return{result:'Failed',note:x.message};}
     }
 
@@ -453,8 +482,8 @@
               if(xR){
                 if(xR.result==='Success'){
                   cE.push({name:e.name,valBefore:xR.valBefore,valAfter:xR.valAfter,reason:xR.note});eVB=xR.valBefore;eVA=xR.valAfter;
-                  if(r.action==='increase_budget'){r.state[e.id]={...r.state[e.id],baseline_val:xR.baseline_val||e.budget,step_count:(r.state[e.id]?.step_count||0)+1,last_results:xR.last_results!==undefined?xR.last_results:e.results,last_increase:nI};}
-                  else if(r.action==='decrease_budget'){r.state[e.id]={...r.state[e.id],baseline_dec_val:xR.baseline_dec_val||e.budget,step_dec_count:(r.state[e.id]?.step_dec_count||0)+1,last_decrease:nI};}
+                  if(r.action==='increase_budget'){r.state[e.id]={...r.state[e.id],step_count:(r.state[e.id]?.step_count||0)+xR.step_count,last_results:xR.last_results!==undefined?xR.last_results:e.results,last_increase:nI};}
+                  else if(r.action==='decrease_budget'){r.state[e.id]={...r.state[e.id],step_dec_count:(r.state[e.id]?.step_dec_count||0)+xR.step_dec_count,last_decrease:nI};}
                   else if(r.action==='reset_budget'){if(r.state[e.id]){r.state[e.id].step_count=0;r.state[e.id].last_results=0;r.state[e.id].step_dec_count=0;}}
                 }else if(['Skipped','MinLimitReached','MaxLimitReached'].includes(xR.result)){dE.push({name:e.name,reason:xR.note});}
                 else{eE.push({name:e.name,reason:xR.note||'Error eksekusi'});}
