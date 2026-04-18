@@ -340,9 +340,9 @@
     function logRule(r,tL,res,aN,aNm,cM,vB,vA,iC,sm,accN,fC=0){saveRuleLog({id:Date.now()+Math.random(),timestamp:new Date().toISOString(),ruleId:r.id,ruleName:r.name,targetLevel:tL,assetName:JSON.stringify(aN),assetCount:aN.length||fC,actionName:aNm,conditionMet:cM,valBefore:vB,valAfter:vA,isChanged:iC,result:res,accountName:accN,summary:sm});}
     async function executeRuleActionStatus(r,e,nS,t,v){try{await fetchMetaApi(`https://graph.facebook.com/${v}/${e.id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:nS,access_token:t})});return{result:'Success',valBefore:e.status,valAfter:nS};}catch(err){return{result:'Failed',note:err.message};}}
 
-    function evaluateRuleConditions(r,e){
+    function evaluateRuleConditions(r,e,isManual=false){
       if(!r.conditions||!r.conditions.length)return{met:true,r:"OK"};
-      const sp=safeNumber(e.spend),iN=['turn_off','decrease_budget','reset_budget'].includes(r.action),hS=r.conditions.some(c=>c.m==='spend'),hI=r.conditions.some(c=>['impressions','reach'].includes(c.m));
+      const sp=safeNumber(e.spend),iN=['turn_off','decrease_budget','reset_budget'].includes(r.action);
       const cM={'cost_per_result':'results','cost_purchase':'purchases','cost_lead':'leads','cost_add_to_cart':'add_to_cart','cost_initiate_checkout':'initiate_checkout','cost_conversations':'conversations','cpc_link':'link_clicks','cpm':'impressions'};
       for(const c of r.conditions){
         if(c.type==='FILTER'){const v=(e.name||'').toLowerCase(),t=(c.v||'').toLowerCase(),m=c.op==='contains'?v.includes(t):!v.includes(t);if(!m)return{met:false,r:`Filter '${c.v}' tak cocok`};}
@@ -351,7 +351,7 @@
           if(cM[c.m]){const d=safeNumber(e[cM[c.m]]);if(d===0&&sp>0){if(c.op.includes('greater'))aV=sp;else if(c.op.includes('smaller'))aV=Infinity;}}
           if(c.m==='roas'&&safeNumber(e.purchases)===0&&c.op.includes('smaller'))aV=0;
           if(r.enableLooseCpr&&r.looseCpr&&cM[c.m]){const ll=parseFloat(String(r.looseCpr).replace(/[^0-9]/g,''))||0;if(ll>0&&safeNumber(e[cM[c.m]])>5)tV=ll;}
-          if(c.type==='GROWTH'){let st=r.state&&r.state[e.id]?r.state[e.id]:{},lV=st[`last_val_${c.m}`];if(lV===undefined)return{met:false,r:'Tunggu Baseline Pertumbuhan'};aV-=lV;if(!r.state)r.state={};if(!r.state[e.id])r.state[e.id]={};r.state[e.id][`next_val_${c.m}`]=parseFloat(e[c.m])||0;}
+          if(c.type==='GROWTH'){let st=r.state&&r.state[e.id]?r.state[e.id]:{},lV=st[`last_val_${c.m}`];if(lV===undefined&&!isManual)return{met:false,r:'Tunggu Baseline Pertumbuhan'};aV-=lV||0;if(!r.state)r.state={};if(!r.state[e.id])r.state[e.id]={};r.state[e.id][`next_val_${c.m}`]=parseFloat(e[c.m])||0;}
           let m=false;if(c.op==='greater')m=aV>tV;else if(c.op==='smaller')m=aV<tV;else if(c.op==='equal')m=aV===tV;else if(c.op==='greater_equal')m=aV>=tV;else if(c.op==='smaller_equal')m=aV<=tV;
           if(!m)return{met:false,r:`Syarat ${c.m} tak terpenuhi`};
         }
@@ -422,7 +422,7 @@
     async function runRuleManually(id){Swal.fire({title:'Menjalankan...',text:'Memproses ke Meta API, mohon tunggu.',allowOutsideClick:false,background:'#0f172a',color:'#ffffff',didOpen:()=>Swal.showLoading()});await runAutomatedRules(id);}
 
     async function runAutomatedRules(fId=null){
-      const rs=currentUser?.rules||[],aRs=rs.filter(r=>r.isActive!==false),nw=new Date(),nI=nw.toISOString();
+      const rs=currentUser?.rules||[],aRs=rs.filter(r=>r.isActive!==false||fId),nw=new Date(),nI=nw.toISOString();
       let gU=false,st={e:0,c:0,f:0},pB=new Set(),pS=new Set();
       for(const r of aRs){
         if(!r.state)r.state={}; const rA=accounts.find(a=>a.id===r.adAccountId); if(!rA)continue;
@@ -440,8 +440,8 @@
             if(iB&&pB.has(e.budget_source_id)){nE.push({name:e.name,reason:'Duplikat aksi budget'});cCt++;continue;}
             let nSB=false;if(!r.state)r.state={};if(!r.state[e.id])r.state[e.id]={};
             for(const c of r.conditions){if(c.type==='GROWTH'&&r.state[e.id][`last_val_${c.m}`]===undefined){r.state[e.id][`last_val_${c.m}`]=parseFloat(e[c.m])||0;nSB=true;}}
-            if(nSB){nE.push({name:e.name,reason:'Tunggu Baseline Pertumbuhan'});cCt++;continue;}
-            const cR=evaluateRuleConditions(r,e);
+            if(nSB&&!fId){nE.push({name:e.name,reason:'Tunggu Baseline Pertumbuhan'});cCt++;continue;}
+            const cR=evaluateRuleConditions(r,e,!!fId);
             if(cR.met){
               if(iB)pB.add(e.budget_source_id);if(iS)pS.add(e.id);
               let xR=null;
